@@ -7,7 +7,11 @@ cardLast4: { type: String },
 expiryDate: { type: String },
 status: {type: String, enum:['SUCCESS', 'FAILED', 'PENDING'], default:'PENDING'},
 purpose: { type: String, enum: ['BRAND_SUBSCRIPTION', 'BAZAAR_SUBSCRIPTION', 'BRAND_ENTRY_FEE','ORDER_CHECKOUT'] },
-transactionId:{type:String, unique: true, sparse: true}
-
+transactionId:{type:String, unique: true, sparse: true},
+orderId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Order',
+  default: null
+},
 },{timestamps:true})
 module.exports=mongoose.model('Payment',paymentSchema)
