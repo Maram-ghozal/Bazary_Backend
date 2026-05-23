@@ -11,10 +11,6 @@ const bazaarSchema = new mongoose.Schema({
 
     whatsapp: { type: String },
 
-    email: { type: String, required: true,
-         validate:[validator.isEmail,'Please provide a valid email']
-     },
-
     bazaarName: { type: String, required: true },
 
     bazaarDescription: { type: String, maxlength: 500 },
@@ -46,8 +42,6 @@ const bazaarSchema = new mongoose.Schema({
     autoCloseOnFull: { type: Boolean, default: true },
 
     autoCloseBeforeEvent: { type: Boolean, default: false },
-
-
 },
 // Automatically add createdAt and updatedAt fields
  { timestamps: true });
