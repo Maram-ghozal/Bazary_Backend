@@ -7,7 +7,8 @@ const userSchema=new mongoose.Schema({
     googleId:{ type: String ,unique:true,sparse:true
     },
     role:{ type: String, enum: ['CUSTOMER', 'BRAND_OWNER', 'BAZAAR_OWNER','ADMIN'],default:"CUSTOMER", required: true },
-
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date }
 },
 {timestamps:true})
 const User=mongoose.model('User',userSchema)
