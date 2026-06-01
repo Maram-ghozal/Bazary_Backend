@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const httpStatusText = require("./utils/httpStatusText");
 const cors = require('cors');
 const authRoutes=require('./routes/auth.route')
+const brandRoutes = require('./routes/brand.route');
+
 //load environment variables from .env file
 require('dotenv').config();
 //create express app
@@ -21,6 +23,8 @@ mongoose.connect(url).then(() => {
 app.use(express.json());
 
 app.use('/api/auth',authRoutes)
+app.use('/api/brand', brandRoutes);
+
 //handle 404 error for undefined routes
 app.use((req, res) => {
     res.status(404).json({status: httpStatusText.ERROR, message: "route not found"});
