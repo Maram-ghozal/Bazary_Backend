@@ -8,7 +8,7 @@ const bazaarBrandSchema = new mongoose.Schema({
 
   brandType:  { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'], default: 'OFFLINE' },
 
-  status:     { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+  // status:     { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
 
   paidAt:     { type: Date },
 
