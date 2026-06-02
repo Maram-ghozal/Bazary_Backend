@@ -9,8 +9,6 @@ const Product = require('../models/productModel');
 
 const getDashboard = asyncWrapper(async (req, res, next) => {
 
-    req.user = { id: '6a1dbec0f8cf15a70d660886' };
-
     // pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
