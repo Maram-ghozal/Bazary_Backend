@@ -1,31 +1,33 @@
-const Joi = require('joi');
+const Joi = require("joi");
 
 const createProductSchema = Joi.object({
-  name:            Joi.string().trim().required(),
-  description:     Joi.string().optional().allow(''),
-  quantity:        Joi.number().integer().min(0).required(),
-  price:           Joi.number().positive().required(),
+  name: Joi.string().trim().min(2).required(),
+  description: Joi.string().trim().min(10).optional().allow(""),
+  quantity: Joi.number().integer().min(0).required(),
+  price: Joi.number().positive().required(),
   priceAfterOffer: Joi.number().positive().optional().allow(null),
 }).custom((value, helpers) => {
   const { price, priceAfterOffer } = value;
-  if (priceAfterOffer && price && priceAfterOffer >= price) {
-    return helpers.error('any.invalid');
+  if  (priceAfterOffer !== null && priceAfterOffer !== undefined && priceAfterOffer >= price) {
+    return helpers.message("priceAfterOffer must be less than price");
   }
   return value;
 });
 
 const updateProductSchema = Joi.object({
-  name: Joi.string().trim(),
-  description: Joi.string().allow(''),
+  name: Joi.string().trim().min(2),
+  description: Joi.string().trim().min(10).allow(""),
   quantity: Joi.number().integer().min(0),
   price: Joi.number().positive(),
   priceAfterOffer: Joi.number().positive().allow(null),
   isActive: Joi.boolean(),
-}).min(1).custom((value, helpers) => {
+})
+  .min(1)
+  .custom((value, helpers) => {
     const { price, priceAfterOffer } = value;
-    if ( priceAfterOffer !== undefined && price !== undefined) {
+    if (price !== undefined && priceAfterOffer !== undefined && priceAfterOffer !== null) {
       if (priceAfterOffer >= price) {
-        return helpers.message('priceAfterOffer must be less than price');
+        return helpers.message("priceAfterOffer must be less than price");
       }
     }
     return value;

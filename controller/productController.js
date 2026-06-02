@@ -43,11 +43,15 @@ const createProduct = asyncWrapper(async (req, res, next) => {
 const updateProduct = asyncWrapper(async (req, res, next) => {
   const { brandId, productId } = req.params;
   await checkBrandExists(brandId);
-  const product = await Product.findOneAndUpdate(
-    { _id: productId, brandId},
-    req.body,
-    { new: true }
-  );
+  //check priceOffer
+  if (req.body.priceAfterOffer) {
+  const existingProduct = await Product.findOne({ _id: productId, brandId });
+  const currentPrice = req.body.price ?? existingProduct.price;
+  if (req.body.priceAfterOffer >= currentPrice) {
+    return next(AppError.createError('priceAfterOffer must be less than price', 400, httpStatus.FAIL));
+  }
+}
+  const product = await Product.findOneAndUpdate( { _id: productId, brandId}, req.body, { new: true } );
   if (!product) {
     return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
   }
