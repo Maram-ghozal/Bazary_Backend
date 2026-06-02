@@ -17,7 +17,7 @@ const verifyToken = (req, res, next) => {
         next();
 
     } catch (err) {
-        const error = appError.create('invalid token', 401, httpStatusText.ERROR)
+        const error = appError.createError('invalid token', 401, httpStatusText.ERROR)
         return next(error);
     }   
     
