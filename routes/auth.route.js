@@ -13,7 +13,7 @@ router.post(
 );
 router.post('/login',validateMiddleware(loginSchema),login)
 router.post('/forgotPassword', forgotPassword);
-router.post('/resetPassword/:token', resetPassword);
+router.post('/resetPassword', resetPassword);
 router.post('/logout',logout)
 
 

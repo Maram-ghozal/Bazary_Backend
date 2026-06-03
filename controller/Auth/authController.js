@@ -11,10 +11,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require('crypto');
 const asyncWrapper = require("../../middleware/asyncWrapper");
 const sendEmail = require('../../utils/sendEmail');
-
-
-
-
+// register customer
 const register= asyncWrapper(async(req,res,next)=>{
     const{email,password,fullName}=req.body;
     const existingUser= await User.findOne({email})
@@ -99,79 +96,72 @@ const logout=asyncWrapper(async(req,res,next)=>{
         data: null
     });
 })
-    const forgotPassword = asyncWrapper(async (req, res, next) => {
-    
+// forget password
+const forgotPassword = asyncWrapper(async (req, res, next) => {
     const user = await User.findOne({ email: req.body.email });
     if (!user) {
         return next(appError.createError("There is no user with this email address", 404, httpStatus.FAIL));
     }
 
-  
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    
+    // ✅ توليد OTP رقمي 6 خانات
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // ✅ تخزينه مشفر في الداتابيز
+    user.passwordResetToken = crypto.createHash('sha256').update(otp).digest('hex');
     user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-    
-    
     await user.save({ validateBeforeSave: false });
-    const resetURL = `http://localhost:5173/reset-password/${resetToken}`;
-    
-    const message = `Forgot your password? Click on the link below to reset it:\n\n${resetURL}\n\nIf you didn't forget your password, please ignore this email.`;
+
+    const message = `Your password reset code is: ${otp}\n\nValid for 10 minutes only.\nIf you didn't request this, ignore this email.`;
 
     try {
-                await sendEmail({
+        await sendEmail({
             email: user.email,
-            subject: 'Bazaary - Password Reset (Valid for 10 minutes)',
+            subject: 'Bazaary - Password Reset OTP',
             message: message
         });
 
         res.status(200).json({
             status: httpStatus.SUCCESS,
-            message: 'Token sent to email successfully!'
+            message: 'OTP sent to email successfully!'
         });
 
     } catch (err) {
-        console.log("Nodemailer Error Details: ", err);
         user.passwordResetToken = undefined;
         user.passwordResetExpires = undefined;
         await user.save({ validateBeforeSave: false });
-
-        return next(appError.createError('There was an error sending the email. Try again later!', 500, httpStatus.ERROR));
+        return next(appError.createError('Error sending email. Try again later!', 500, httpStatus.ERROR));
     }
-
 });
+//reset
 const resetPassword = asyncWrapper(async (req, res, next) => {
-    // 1. استخراج الرمز من الرابط وتشفيره عشان نقارنه باللي في الداتابيز
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+    const { email, otp, password } = req.body; 
 
-    // 2. البحث عن المستخدم بالرمز المشفر، والتأكد إن الـ 10 دقايق مخلصوش
+    //  تشفير الـ OTP للمقارنة
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
     const user = await User.findOne({
-        passwordResetToken: hashedToken,
-        passwordResetExpires: { $gt: Date.now() } // $gt معناها Greater Than (الوقت الحالي)
+        email,
+        passwordResetToken: hashedOtp,
+        passwordResetExpires: { $gt: Date.now() }
     });
 
-    // 3. لو مفيش يوزر، أو الوقت خلص
     if (!user) {
-        return next(appError.createError('Token is invalid or has expired', 400, httpStatus.FAIL));
+        return next(appError.createError('OTP is invalid or has expired', 400, httpStatus.FAIL));
     }
 
-    // 4. تشفير الباسورد الجديد اللي العميل بعته
     const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(req.body.password, salt);
-
-    // 5. مسح بيانات الطوارئ من الداتابيز (عشان الرمز ميستخدمش تاني)
+    user.passwordHash = await bcrypt.hash(password, salt);
+    //هنمسحهم من db
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
-
-    // 6. حفظ التعديلات
     await user.save({ validateBeforeSave: false });
 
-    // 7. الرد بنجاح العملية
     res.status(200).json({
         status: httpStatus.SUCCESS,
-        message: 'Password reset successfully. You can now log in with your new password!'
+        message: 'Password reset successfully!'
     });
 });
+
 const registerBazaar = asyncWrapper(async (req, res, next) => {
     const { 
         email, fullName, phone, whatsapp, 
