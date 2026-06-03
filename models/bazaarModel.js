@@ -3,7 +3,7 @@ const validator = require('validator');
 
 const bazaarSchema = new mongoose.Schema({
     // Reference to the User who created the bazaar
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
     fullName: { type: String, required: true },
 

@@ -1,25 +1,28 @@
 const express = require('express')
 const router = express.Router()
 const validateMiddleware = require("../middleware/validateMiddleware");
-const { registerSchema ,loginSchema} = require("../utils/validation/customerValidation");
-const {register,login,logout,forgotPassword,resetPassword,registerBazaar}=require("../controller/Auth/authController");
+const { registerSchema, loginSchema } = require("../utils/validation/customerValidation");
 const { createBazaarSchema } = require('../utils/validation/bazaarValidation');
-router.post('/register/customer',validateMiddleware(registerSchema),register)
-// الراوت ده هيكون اللينك بتاعه: /api/auth/register/bazaar
-router.post(
-    '/register/bazaar', 
-    validateMiddleware(createBazaarSchema), 
-    registerBazaar
-);
-router.post('/login',validateMiddleware(loginSchema),login)
+const { createBrandSchema } = require('../utils/validation/brandValidation');
+const {
+    register, login, logout,
+    forgotPassword, resetPassword,
+    registerBazaar,
+    registerBrand 
+} = require("../controller/Auth/authController");
+
+// Customer
+router.post('/register/customer', validateMiddleware(registerSchema), register);
+router.post('/login', validateMiddleware(loginSchema), login);
+router.post('/logout', logout);
+
+// Password
 router.post('/forgotPassword', forgotPassword);
 router.post('/resetPassword', resetPassword);
-router.post('/logout',logout)
 
+// Bazaar
+router.post('/register/bazaar', validateMiddleware(createBazaarSchema), registerBazaar);
 
-
-
-
-
-
-module.exports = router;
+// Brand 
+router.post('/bazaars/:bazaarId/brands/register',validateMiddleware(createBrandSchema) ,registerBrand);
+module.exports=router
