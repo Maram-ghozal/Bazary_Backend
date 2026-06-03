@@ -216,9 +216,7 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
     const brandIds = bazaarBrands.map((b) => b.brandId);
 
-    // =========================
-    // CASE 1: CLICKED ON A HOUR (DETAIL VIEW)
-    // =========================
+    
     if (hour !== undefined) {
 
         const result = await Order.aggregate([
@@ -268,9 +266,7 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
         });
     }
 
-    // =========================
-    // CASE 2: FULL CHART MODE
-    // =========================
+  
     const salesByHour = await Order.aggregate([
         {
             $match: {
