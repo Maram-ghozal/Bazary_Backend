@@ -2,12 +2,18 @@ const appError = require("../../utils/appError");
 const httpStatus = require("../../utils/httpStatusText");
 const User = require("../../models/userModel");
 const Customer = require("../../models/customerModel");
+const Bazaar = require('../../models/bazaarModel');
+const Payment = require('../../models/paymentModel');
+
 const generateToken = require("../../utils/generateWebToken");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require('crypto');
 const asyncWrapper = require("../../middleware/asyncWrapper");
 const sendEmail = require('../../utils/sendEmail');
+
+
+
 
 const register= asyncWrapper(async(req,res,next)=>{
     const{email,password,fullName}=req.body;
@@ -166,7 +172,78 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
         message: 'Password reset successfully. You can now log in with your new password!'
     });
 });
+const registerBazaar = asyncWrapper(async (req, res, next) => {
+    const { 
+        email, fullName, phone, whatsapp, 
+        bazaarName, type, bazaarDescription, logoUrl, address, googleMapsLink, startDate, endDate,
+        priceOffline, priceOnline, priceHybrid, paymentMethod 
+    } = req.body;
 
+    let user = await User.findOne({ email });
+    let isNewUser = false;
+    let tempPassword = ""; 
+
+    if (user) {
+        if (user.role === 'CUSTOMER') {
+            user.role = 'BAZAAR_OWNER';
+            await user.save();
+        }
+    } else {
+        tempPassword = Math.random().toString(36).slice(-8); 
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        user = await User.create({
+            email,
+            passwordHash: hashedPassword,
+            role: 'BAZAAR_OWNER'
+        });
+        isNewUser = true;
+    }
+
+    if (isNewUser) {
+        const message = `
+            Welcome to Bazaary! 🎉
+            Your account has been successfully created.
+            Here are your temporary login details:
+            Email: ${email}
+            Password: ${tempPassword}
+            Please log in and change your password as soon as possible.
+        `;
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Your Bazaary Account Details',
+                message: message
+            });
+        } catch (error) {
+            console.error("Error sending password email:", error);
+        }
+    }
+
+    const newBazaar = await Bazaar.create({
+        userId: user._id,
+        fullName, phone, whatsapp,
+        bazaarName, type, bazaarDescription, logoUrl, address, googleMapsLink, startDate, endDate,
+        priceOffline, priceOnline, priceHybrid, paymentMethod
+    });
+
+    const newPayment = await Payment.create({
+        userId: user._id,
+        amount: 500, 
+        purpose: 'BAZAAR_SUBSCRIPTION',
+        status: 'PENDING'
+    });
+
+    res.status(201).json({
+        status: 'SUCCESS',
+        message: 'Bazaar registered successfully. Pending payment.',
+        data: {
+            bazaar: newBazaar,
+            paymentId: newPayment._id,
+            isNewUser 
+        }
+    });
+});
 module.exports={
-    register,login,logout,forgotPassword,resetPassword
+    register,login,logout,forgotPassword,resetPassword,registerBazaar
 }
