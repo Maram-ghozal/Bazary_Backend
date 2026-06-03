@@ -8,5 +8,6 @@ const requireRole=require('../middleware/roleMiddleware');
 router.use(verifyToken,requireRole('BAZAAR_OWNER'));
 
 router.get('/dashboard',bazaarController.getDashboard);
-
+router.get('/dashboard/brandComparsion',bazaarController.getBrandsComparison);
+router.get('/dashboard/salesByHour',bazaarController.getSalesByHour);
 module.exports=router
