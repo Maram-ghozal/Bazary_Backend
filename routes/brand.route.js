@@ -8,6 +8,9 @@ const {
   updateProductSchema,
 } = require("../utils/validation/productValidation");
 
+const upload = require("../middleware/uploadMiddleware");
+const uploadOnImageKit = require("../middleware/imagekitMiddleware");
+
 const {
   getAllBrands,
   getOneBrand,
@@ -25,13 +28,13 @@ const {
 //Brand
 router.get("/", getAllBrands);
 router.get("/:brandId", getOneBrand);
-router.patch("/:brandId", validate(updateBrandSchema), updateBrand);
+router.patch("/:brandId", validate(updateBrandSchema),upload.single("logoUrl"),uploadOnImageKit, updateBrand);
 
 //Products
 router.get("/:brandId/products", getAllProducts);
 router.get("/:brandId/products/:productId", getOneProduct);
-router.post("/:brandId/products", validate(createProductSchema), createProduct);
-router.patch("/:brandId/products/:productId", validate(updateProductSchema), updateProduct,);
+router.post("/:brandId/products", validate(createProductSchema), upload.array("images"), uploadOnImageKit, createProduct);
+router.patch("/:brandId/products/:productId", validate(updateProductSchema), upload.array("images"), uploadOnImageKit, updateProduct);
 router.delete("/:brandId/products/:productId", deleteProduct);
 
 module.exports = router;

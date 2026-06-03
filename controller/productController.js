@@ -35,7 +35,9 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
 const createProduct = asyncWrapper(async (req, res, next) => {
   const { brandId } = req.params;
   await checkBrandExists(brandId);
-  const product = await Product.create({ brandId, ...req.body });
+  //
+   const images = req.imagesUrls || [];
+  const product = await Product.create({ brandId, ...req.body, images  });
   res.status(201).json({ status: httpStatus.SUCCESS, message: "Product created successfully",data: { ...product.toObject(), stockStatus: getStockStatus(product.quantity) } });
 });
 
@@ -51,7 +53,12 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
     return next(AppError.createError('priceAfterOffer must be less than price', 400, httpStatus.FAIL));
   }
 }
-  const product = await Product.findOneAndUpdate( { _id: productId, brandId}, req.body, { new: true } );
+  const body = { ...req.body };
+  if (req.imagesUrls && req.imagesUrls.length > 0) {
+    body.images = req.imagesUrls;
+  }
+
+  const product = await Product.findOneAndUpdate( { _id: productId, brandId}, body, { new: true } );
   if (!product) {
     return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
   }

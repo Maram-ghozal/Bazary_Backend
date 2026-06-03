@@ -19,8 +19,12 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
 
 //patch /api/brand/:brandId
 const updateBrand = asyncWrapper(async (req, res, next) => {
-  const body = req.body;
+  const body = { ...req.body };
   const brandId = req.params.brandId;
+  
+  if (req.imagesUrls && req.imagesUrls.length > 0) {
+    body.logoUrl = req.imagesUrls[0];
+  }
   const brand = await Brand.findByIdAndUpdate(brandId, body, { new: true });
   if (!brand) {
     return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
