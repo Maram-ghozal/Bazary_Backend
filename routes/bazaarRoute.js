@@ -13,4 +13,5 @@ router.get('/dashboard/brandComparsion',bazaarController.getBrandsComparison);
 router.get('/dashboard/salesByHour',bazaarController.getSalesByHour);
 router.get('/control',bazaarController.getBazaarControl);
 router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.toggleRegistration);
+router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
 module.exports=router

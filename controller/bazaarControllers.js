@@ -369,10 +369,40 @@ const toggleRegistration = asyncWrapper(async (req, res, next) => {
     })
 });
 
+const updateAutomationRules = asyncWrapper(async (req, res, next) => {
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+
+    if (!bazaar) {
+        const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
+        return next(error);
+    }
+
+    const { autoCloseOnFull, autoCloseBeforeEvent } = req.body;
+
+    if (autoCloseOnFull !== undefined) {
+        bazaar.autoCloseOnFull = autoCloseOnFull;
+    }
+
+    if (autoCloseBeforeEvent !== undefined) {
+        bazaar.autoCloseBeforeEvent = autoCloseBeforeEvent;
+    }
+
+    await bazaar.save();
+
+    res.json({
+        status: httpStatusText.SUCCESS,
+        message: "Auto close rule updated successfully",
+        data: {
+            autoCloseOnFull: bazaar.autoCloseOnFull,
+            autoCloseBeforeEvent: bazaar.autoCloseBeforeEvent
+        }
+    });
+});
 module.exports = {
     getDashboard,
     getBrandsComparison,
     getSalesByHour,
     getBazaarControl,
-    toggleRegistration
+    toggleRegistration,
+    updateAutomationRules
 };
