@@ -3,7 +3,7 @@ const validator = require('validator');
 
 const bazaarSchema = new mongoose.Schema({
     // Reference to the User who created the bazaar
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
     fullName: { type: String, required: true },
 
@@ -16,6 +16,7 @@ const bazaarSchema = new mongoose.Schema({
     bazaarDescription: { type: String, maxlength: 500 },
 
     logoUrl: { type: String },
+    type: { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'], required: true },
 
     address: { type: String },
 
@@ -25,7 +26,8 @@ const bazaarSchema = new mongoose.Schema({
 
     endDate: { type: Date },
 
-    status: { type: String, enum: ['UPCOMING', 'LIVE', 'ENDED'], default: 'UPCOMING' },
+    status: { type: String, enum: ['PENDING_PAYMENT', 'UPCOMING', 'LIVE', 'ENDED'], default: 'PENDING_PAYMENT' },
+    isPaid: { type: Boolean, default: false },
 
     priceOffline: { type: Number },
 

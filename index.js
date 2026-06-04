@@ -11,6 +11,7 @@ require('dotenv').config();
 //create express app
 const app = express();
 
+
 //import cors middleware to allow cross-origin requests
 app.use(cors());
 
@@ -25,7 +26,7 @@ app.use(express.json());
 
 app.use('/api/auth',authRoutes)
 app.use('/api/brand', brandRoutes);
-app.use('/api/bazaar',bazaarRoute)
+app.use('/api/bazaar',bazaarRoute);
 
 //handle 404 error for undefined routes
 app.use((req, res) => {
@@ -38,9 +39,7 @@ app.use((error, req, res, next) => {
 });
 
 //start the server
-app.listen(process.env.PORT, () => {
-    console.log(`listening on port ${process.env.PORT}`);
-})
-
-
-// module.exports = app; 
+ app.listen(process.env.PORT, () => {
+     console.log(`listening on port ${process.env.PORT}`);
+ })
+module.exports = app;

@@ -13,6 +13,11 @@ const bazaarBrandSchema = new mongoose.Schema({
   paidAt:     { type: Date },
 
   paidAmount: { type: Number },
+paymentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Payment',
+    default: null
+}
 
 }, { timestamps: true });
 

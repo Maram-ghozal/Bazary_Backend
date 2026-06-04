@@ -1,6 +1,20 @@
 const Joi = require("joi");
 
 const createBrandSchema = Joi.object({
+  // bazaarId:         Joi.string().hex().length(24).required(),
+  firstName:        Joi.string().trim().min(3).required(),
+  lastName:         Joi.string().trim().min(3).required(),
+  phone:            Joi.string().trim().required(),
+  whatsapp:         Joi.string().trim().allow('').optional(),
+  email:            Joi.string().email().lowercase().required(),
+  logoUrl:          Joi.string().uri().optional(),
+   brandType: Joi.string().valid('OFFLINE', 'ONLINE', 'HYBRID').required(),
+  brandName:        Joi.string().trim().min(3).required(),
+  brandCategory:    Joi.string().trim().min(2).optional(),
+  brandDescription: Joi.string().min(10).max(600).optional(),
+  location:         Joi.string().optional(),
+  // joinType بيتبعت مع الـ payment step
+  // joinType: Joi.string().valid('OFFLINE', 'ONLINE', 'HYBRID').required(),
   firstName: Joi.string().trim().min(3).required(),
   lastName: Joi.string().trim().min(3).required(),
   phone: Joi.string().trim().pattern(/^[0-9+\-\s()]+$/).required(),
