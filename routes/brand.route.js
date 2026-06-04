@@ -13,6 +13,8 @@ const { createProductSchema, updateProductSchema } = require("../utils/validatio
 const { getMyBrand, updateBrand } = require("../controller/brandController");
 const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProduct } = require("../controller/productController");
 
+const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/orderController");
+
 router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 
 // Brand
@@ -25,5 +27,10 @@ router.get("/products/:productId", getOneProduct);
 router.post("/products", validate(createProductSchema), upload.array("images"), uploadOnImageKit, createProduct);
 router.patch("/products/:productId", validate(updateProductSchema), upload.array("images"), uploadOnImageKit, updateProduct);
 router.delete("/products/:productId", deleteProduct);
+
+// Orders
+router.get("/orders", getAllOrders);
+router.get("/orders/:orderId", getOneOrder);
+router.patch("/orders/:orderId/status", updateOrderStatus);
 
 module.exports = router;
