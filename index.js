@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const mongoose = require('mongoose');
 const httpStatusText = require("./utils/httpStatusText");
@@ -6,8 +7,6 @@ const authRoutes=require('./routes/auth.route')
 const brandRoutes = require('./routes/brand.route');
 const bazaarRoute=require('./routes/bazaarRoute');
 
-//load environment variables from .env file
-require('dotenv').config();
 //create express app
 const app = express();
 
@@ -26,7 +25,7 @@ app.use(express.json());
 
 app.use('/api/auth',authRoutes)
 app.use('/api/brand', brandRoutes);
-app.use('/api/bazaar',bazaarRoute)
+app.use('/api/bazaar',bazaarRoute);
 
 //handle 404 error for undefined routes
 app.use((req, res) => {
@@ -38,8 +37,10 @@ app.use((error, req, res, next) => {
     res.status(error.statusCode || 500).json({status: error.statusText || httpStatusText.ERROR, message: error.message, code: error.statusCode || 500, data: null});
 });
 
-//start the server
- app.listen(process.env.PORT, () => {
-     console.log(`listening on port ${process.env.PORT}`);
- })
-module.exports = app;
+// start the server
+// app.listen(process.env.PORT, () => {
+//     console.log(`listening on port ${process.env.PORT}`);
+// })
+
+
+module.exports = app; 

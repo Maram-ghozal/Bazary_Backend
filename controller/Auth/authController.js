@@ -12,7 +12,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require('crypto');
 const asyncWrapper = require("../../middleware/asyncWrapper");
 const sendEmail = require('../../utils/sendEmail');
-// register customer
+// 1---------register customer
 const register= asyncWrapper(async(req,res,next)=>{
     const{email,password,fullName}=req.body;
     const existingUser= await User.findOne({email})
@@ -162,7 +162,7 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
         message: 'Password reset successfully!'
     });
 });
-
+//2----------------register bazaar
 const registerBazaar = asyncWrapper(async (req, res, next) => {
     const { 
         email, fullName, phone, whatsapp, 
@@ -253,6 +253,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
         }
     });
 });
+//3------------- register bazaar
 const registerBrand = asyncWrapper(async (req, res, next) => {
     const { bazaarId } = req.params;
     const {
