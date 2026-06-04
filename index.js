@@ -10,6 +10,7 @@ const bazaarRoute=require('./routes/bazaarRoute');
 //create express app
 const app = express();
 
+
 //import cors middleware to allow cross-origin requests
 app.use(cors());
 
@@ -24,7 +25,7 @@ app.use(express.json());
 
 app.use('/api/auth',authRoutes)
 app.use('/api/brand', brandRoutes);
-app.use('/api/bazaar',bazaarRoute)
+app.use('/api/bazaar',bazaarRoute);
 
 //handle 404 error for undefined routes
 app.use((req, res) => {
