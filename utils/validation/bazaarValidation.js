@@ -23,6 +23,26 @@ const createBazaarSchema = Joi.object({
     autoCloseBeforeEvent: Joi.boolean().allow(null)
 });
 
+const updateBazaarSchema = Joi.object({
+    email: Joi.string().email(),
+    phone: Joi.string(),
+    bazaarName: Joi.string(),
+    bazaarDescription: Joi.string().max(500).allow('', null),
+    logoUrl: Joi.string().uri().allow('', null),
+
+    priceOffline: Joi.number().min(0).allow(null),
+    priceOnline: Joi.number().min(0).allow(null),
+    priceHybrid: Joi.number().min(0).allow(null),
+
+    maxBrandCapacity: Joi.number().min(1).allow(null),
+
+    isAcceptingBrands: Joi.boolean(),
+
+    autoCloseOnFull: Joi.boolean(),
+    autoCloseBeforeEvent: Joi.boolean()
+}).min(1);
+
 module.exports = {
-    createBazaarSchema
+    createBazaarSchema,
+    updateBazaarSchema
 };
