@@ -1,37 +1,29 @@
 const express = require("express");
 const router = express.Router();
 
+const verifyToken = require("../middleware/verifyToken");
+const roleMiddleware = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validateMiddleware");
+const upload = require("../middleware/uploadMiddleware");
+const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
+
 const { updateBrandSchema } = require("../utils/validation/brandValidation");
-const {
-  createProductSchema,
-  updateProductSchema,
-} = require("../utils/validation/productValidation");
+const { createProductSchema, updateProductSchema } = require("../utils/validation/productValidation");
 
-const {
-  getAllBrands,
-  getOneBrand,
-  updateBrand,
-} = require("../controller/brandController");
+const { getMyBrand, updateBrand } = require("../controller/brandController");
+const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProduct } = require("../controller/productController");
 
-const {
-  getAllProducts,
-  getOneProduct,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-} = require("../controller/productController");
+router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 
-//Brand
-router.get("/", getAllBrands);
-router.get("/:brandId", getOneBrand);
-router.patch("/:brandId", validate(updateBrandSchema), updateBrand);
+// Brand
+router.get("/", getMyBrand);
+router.patch("/", validate(updateBrandSchema), upload.single("logoUrl"), uploadOnImageKit, updateBrand);
 
-//Products
-router.get("/:brandId/products", getAllProducts);
-router.get("/:brandId/products/:productId", getOneProduct);
-router.post("/:brandId/products", validate(createProductSchema), createProduct);
-router.patch("/:brandId/products/:productId", validate(updateProductSchema), updateProduct,);
-router.delete("/:brandId/products/:productId", deleteProduct);
+// Products
+router.get("/products", getAllProducts);
+router.get("/products/:productId", getOneProduct);
+router.post("/products", validate(createProductSchema), upload.array("images"), uploadOnImageKit, createProduct);
+router.patch("/products/:productId", validate(updateProductSchema), upload.array("images"), uploadOnImageKit, updateProduct);
+router.delete("/products/:productId", deleteProduct);
 
 module.exports = router;
