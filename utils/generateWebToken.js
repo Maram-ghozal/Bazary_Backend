@@ -10,4 +10,5 @@ const generateToken =(payload)=>{
     });
     return { accessToken, refreshToken };
 }
+
 module.exports = generateToken;

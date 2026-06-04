@@ -19,13 +19,5 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// مش هيسمح بأوفر أعلى من السعر الأصلي
-productSchema.pre('save', function (next) {
-  if (this.priceAfterOffer !== null && this.priceAfterOffer >= this.price) {
-    return next(new Error('priceAfterOffer must be less than price'));
-  }
-  next();
-});
-
 const Product = mongoose.model('Product', productSchema);
 module.exports = Product;
