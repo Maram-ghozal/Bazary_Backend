@@ -332,11 +332,47 @@ const getBazaarControl = asyncWrapper(async (req, res, next) => {
         return next(error);
     }
 
-    return res.json({ status: httpStatusText.SUCCESS, data: { bazaar } });
+    const brandsCount = await BazaarBrand.countDocuments({ bazaarId: bazaar._id });
+
+    const slotsleft = bazaar.maxBrandCapacity - brandsCount;
+
+    return res.json({
+        status: httpStatusText.SUCCESS, data: {
+            bazaar,
+            brandsCount,
+            slotsleft
+        }
+    });
 });
+
+const toggleRegistration = asyncWrapper(async (req, res, next) => {
+
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+
+    if (!bazaar) {
+        const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
+        return next(error);
+    }
+
+    const { isAcceptingBrands } = req.body;
+
+    bazaar.isAcceptingBrands = isAcceptingBrands;
+
+    await bazaar.save();
+
+    res.json({
+        status: httpStatusText.SUCCESS,
+        message: "Registration status updated successfully",
+        data: {
+            isAcceptingBrands: bazaar.isAcceptingBrands
+        }
+    })
+});
+
 module.exports = {
     getDashboard,
     getBrandsComparison,
     getSalesByHour,
-    getBazaarControl
+    getBazaarControl,
+    toggleRegistration
 };
