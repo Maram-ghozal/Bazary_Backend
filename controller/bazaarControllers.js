@@ -104,8 +104,8 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
     const totalOrders = orderStats.reduce((s, o) => s + o.totalOrders, 0);
     const totalRevenue = orderStats.reduce((s, o) => s + o.totalRevenue, 0);
 
-    return res.status(200).json({
-        success: true,
+    return res.json({
+        status: httpStatusText.SUCCESS,
         data: {
             brands,
             totals: {
@@ -176,14 +176,14 @@ const getBrandsComparison = asyncWrapper(async (req, res, next) => {
 
     brands.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-    return res.status(200).json({
-        success: true,
+    return res.json({
+        status: httpStatusText.SUCCESS,
         data: { brands }
     });
 });
 
 const getSalesByHour = asyncWrapper(async (req, res, next) => {
- 
+
     const bazaar = await Bazaar.findOne({ userId: req.user.id });
 
     if (!bazaar) {
@@ -216,7 +216,7 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
     const brandIds = bazaarBrands.map((b) => b.brandId);
 
-    
+
     if (hour !== undefined) {
 
         const result = await Order.aggregate([
@@ -256,8 +256,8 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
             orders: 0,
         };
 
-        return res.status(200).json({
-            success: true,
+        return res.json({
+            status: httpStatusText.SUCCESS,
             data: {
                 hour: Number(hour),
                 period,
@@ -266,7 +266,7 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
         });
     }
 
-  
+
     const salesByHour = await Order.aggregate([
         {
             $match: {
@@ -312,8 +312,8 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
         },
     ]);
 
-    return res.status(200).json({
-        success: true,
+    return res.json({
+        status: httpStatusText.SUCCESS,
         data: {
             period,
             date: startOfDay.toISOString().split("T")[0],
@@ -323,9 +323,20 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
 });
 
+const getBazaarControl = asyncWrapper(async (req, res, next) => {
 
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+
+    if (!bazaar) {
+        const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
+        return next(error);
+    }
+
+    return res.json({ status: httpStatusText.SUCCESS, data: { bazaar } });
+});
 module.exports = {
     getDashboard,
     getBrandsComparison,
-    getSalesByHour
+    getSalesByHour,
+    getBazaarControl
 };
