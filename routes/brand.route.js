@@ -10,7 +10,7 @@ const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const { updateBrandSchema } = require("../utils/validation/brandValidation");
 const { createProductSchema, updateProductSchema } = require("../utils/validation/productValidation");
 
-const { getMyBrand, updateBrand } = require("../controller/brandController");
+const { getMyBrand, updateBrand, getDashboard } = require("../controller/brandController");
 const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProduct } = require("../controller/productController");
 
 const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/orderController");
@@ -18,6 +18,7 @@ const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/
 router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 
 // Brand
+router.get("/dashboard", getDashboard);
 router.get("/", getMyBrand);
 router.patch("/", validate(updateBrandSchema), upload.single("logoUrl"), uploadOnImageKit, updateBrand);
 
