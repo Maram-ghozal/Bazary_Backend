@@ -5,15 +5,15 @@ const Brand = require("../models/brandModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
+const { getBrandWithBazaar, checkBazaarNotEnded, getStockStatus } = require("../utils/helperBrand");
 
 //get /api/brand/dashboard
 const getDashboard = asyncWrapper(async (req, res, next) => {
-  const brand = await Brand.findOne({ userId: req.user.id });
-  if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
-
-  const bazaarBrand = await BazaarBrand.findOne({ brandId: brand._id });
-  if (!bazaarBrand) return next(AppError.createError("Brand is not part of any bazaar", 403, httpStatus.FAIL));
-
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
+ 
+  const bazaarEnded = bazaar?.status === "ENDED";
   //get all orders of the btand without status cancelled
   const orders = await Order.find({
     brandId: brand._id,
@@ -36,27 +36,38 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
     { $project: { _id: 0 //hideId 
     , totalSold: 1, name: "$product.name", images: "$product.images", quantity: "$product.quantity", price: "$product.price" } }
   ]);
-  res.json({ status: httpStatus.SUCCESS, data: { totalRevenue, ordersCount, avgOrderValue, topSelling} });
+
+  const rawRisks = await Product.find({ brandId: brand._id, isActive: true, quantity: { $lte: 10 } })
+    .select("name images quantity")
+    .sort({ quantity: 1 }) // from lowest to highest quantity
+    .limit(10);
+ 
+  const inventoryRisks = rawRisks.map((p) => ({
+    _id: p._id,
+    name: p.name,
+    images: p.images,
+    quantity: p.quantity,
+    stockStatus: getStockStatus(p.quantity),
+  }));
+
+  res.json({ status: httpStatus.SUCCESS, data: { totalRevenue, ordersCount, avgOrderValue, topSelling, inventoryRisks} });
 });
 
 //get /api/brand
 const getMyBrand = asyncWrapper(async (req, res, next) => {
-  const brand = await Brand.findOne({ userId: req.user.id });
-  if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
 
-  const bazaarBrand = await BazaarBrand.findOne({ brandId: brand._id });
-  if (!bazaarBrand) return next(AppError.createError("Brand is not part of any bazaar", 403, httpStatus.FAIL));
-
-  res.json({ status: httpStatus.SUCCESS, data: brand });
+  res.json({ status: httpStatus.SUCCESS, data: result.brand });
 });
 
 //patch /api/brand/:brandId
 const updateBrand = asyncWrapper(async (req, res, next) => {
-  const brand = await Brand.findOne({ userId: req.user.id });
-  if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
 
-  const bazaarBrand = await BazaarBrand.findOne({ brandId: brand._id });
-  if (!bazaarBrand) return next(AppError.createError("Brand is not part of any bazaar", 403, httpStatus.FAIL));
+  if (!checkBazaarNotEnded(bazaar, next)) return;
 
   const body = { ...req.body };
   if (req.imagesUrls && req.imagesUrls.length > 0) {
