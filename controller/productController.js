@@ -2,45 +2,31 @@ const asyncWrapper = require("../middleware/asyncWrapper");
 const AppError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
 const Product = require("../models/productModel");
-const Brand = require("../models/brandModel");
-const BazaarBrand = require("../models/bazaarBrandModel");
-const { getStockStatus } = require("../utils/helperBrand");
-
-const getBrandAndVerify = async (userId, next) => {
-  const brand = await Brand.findOne({ userId });
-  if (!brand) {
-    next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
-    return null;
-  }
-  const bazaarBrand = await BazaarBrand.findOne({ brandId: brand._id });
-  if (!bazaarBrand) {
-    next(AppError.createError("Brand is not part of any bazaar", 403, httpStatus.FAIL));
-    return null;
-  }
-  return brand;
-};
+const { getBrandWithBazaar, checkBazaarNotEnded, getStockStatus } = require("../utils/helperBrand");
 
 //get /api/brand/products
 const getAllProducts = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand } = result;
 
   let products = await Product.find({ brandId: brand._id }).sort({ createdAt: -1 });
   //to add stock status
-  let result = products.map((p) => ({ ...p.toObject(), stockStatus: getStockStatus(p.quantity) }));
+  let mapped  = products.map((p) => ({ ...p.toObject(), stockStatus: getStockStatus(p.quantity) }));
 //to filter by stock status if provided in query
   const { status } = req.query;
   if (status) {
-    result = result.filter((p) => p.stockStatus === status.toUpperCase());
+    mapped = mapped.filter((p) => p.stockStatus === status.toUpperCase());
   }
 
-  res.json({ status: httpStatus.SUCCESS, data: { total: result.length, products: result } });
+  res.json({ status: httpStatus.SUCCESS, data: { total: mapped.length, products: mapped } });
 });
 
 //get /api/brand/products/:productId
 const getOneProduct = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand } = result;
 
   const product = await Product.findOne({ _id: req.params.productId, brandId: brand._id });
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
@@ -50,8 +36,11 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
 
 //post /api/brand/products
 const createProduct = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
+
+  if (!checkBazaarNotEnded(bazaar, next)) return;
 
   const images = req.imagesUrls || [];
   const product = await Product.create({ brandId: brand._id, ...req.body, images });
@@ -61,8 +50,11 @@ const createProduct = asyncWrapper(async (req, res, next) => {
 
 //patch /api/brand/products/:productId
 const updateProduct = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+ const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
+ 
+  if (!checkBazaarNotEnded(bazaar, next)) return;
 
   if (req.body.priceAfterOffer) {
     const existing = await Product.findOne({ _id: req.params.productId, brandId: brand._id });
@@ -89,8 +81,11 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
 
 //delete /api/brand/products/:productId
 const deleteProduct = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
+ 
+  if (!checkBazaarNotEnded(bazaar, next)) return;
 
   const product = await Product.findOneAndDelete({ _id: req.params.productId, brandId: brand._id });
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));

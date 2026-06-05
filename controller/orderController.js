@@ -2,27 +2,13 @@ const asyncWrapper = require("../middleware/asyncWrapper");
 const AppError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
 const Order = require("../models/orderModel");
-const Brand = require("../models/brandModel");
-const BazaarBrand = require("../models/bazaarBrandModel");
-
-const getBrandAndVerify = async (userId, next) => {
-  const brand = await Brand.findOne({ userId });
-  if (!brand) {
-    next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
-    return null;
-  }
-  const bazaarBrand = await BazaarBrand.findOne({ brandId: brand._id });
-  if (!bazaarBrand) {
-    next(AppError.createError("Brand is not part of any bazaar", 403, httpStatus.FAIL));
-    return null;
-  }
-  return brand;
-};
+const { getBrandWithBazaar, checkBazaarNotEnded } = require("../utils/helperBrand");
 
 //get /api/brand/orders
 const getAllOrders = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand } = result;
 
   const { status } = req.query;
   const brandOrdersFilter  = { brandId: brand._id };
@@ -37,13 +23,11 @@ const getAllOrders = asyncWrapper(async (req, res, next) => {
 
 //get /api/brand/orders/:orderId
 const getOneOrder = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand } = result;
 
-  const order = await Order.findOne({
-    _id: req.params.orderId,
-    brandId: brand._id,
-  })
+  const order = await Order.findOne({ _id: req.params.orderId, brandId: brand._id })
     .populate("customerId", "fullName")
     .populate({ path: "customerId", populate: { path: "userId", select: "email"} })
     .populate("items.productId", "name images");
@@ -75,8 +59,11 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
 
 //patch /api/brand/orders/:orderId/status
 const updateOrderStatus = asyncWrapper(async (req, res, next) => {
-  const brand = await getBrandAndVerify(req.user.id, next);
-  if (!brand) return;
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+  const { brand, bazaar } = result;
+ 
+  if (!checkBazaarNotEnded(bazaar, next)) return;
 
   const { status } = req.body;
 
