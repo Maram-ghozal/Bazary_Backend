@@ -5,6 +5,8 @@ const verifyToken=require('../middleware/verifyToken');
 const requireRole=require('../middleware/roleMiddleware');
 const validate = require("../middleware/validateMiddleware");
 const {updateBazaarSchema } = require("../utils/validation/bazaarValidation");
+const upload = require("../middleware/uploadMiddleware");
+const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 
 router.use(verifyToken,requireRole('BAZAAR_OWNER'));
 
@@ -14,4 +16,6 @@ router.get('/dashboard/salesByHour',bazaarController.getSalesByHour);
 router.get('/control',bazaarController.getBazaarControl);
 router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.toggleRegistration);
 router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
+router.get('/setting',bazaarController.getBazaar)
+router.patch("/setting", validate(updateBazaarSchema), upload.single("logoUrl"), uploadOnImageKit,bazaarController.updateBazaar);
 module.exports=router

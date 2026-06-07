@@ -398,11 +398,33 @@ const updateAutomationRules = asyncWrapper(async (req, res, next) => {
         }
     });
 });
+
+const getBazaar = asyncWrapper(async (req, res, next) => {
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+
+    if (!bazaar) {
+        const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
+        return next(error);
+    }
+
+      res.json({
+        status: httpStatusText.SUCCESS,
+        data: {
+           bazaar
+        }
+    });
+});
+
+const updateBazaar = asyncWrapper(async (req, res, next) => {
+
+});
 module.exports = {
     getDashboard,
     getBrandsComparison,
     getSalesByHour,
     getBazaarControl,
     toggleRegistration,
-    updateAutomationRules
+    updateAutomationRules,
+    getBazaar,
+    updateBazaar
 };
