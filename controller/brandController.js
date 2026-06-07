@@ -50,6 +50,7 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
     stockStatus: getStockStatus(p.quantity),
   }));
 
+  
   res.json({ status: httpStatus.SUCCESS, data: { totalRevenue, ordersCount, avgOrderValue, topSelling, inventoryRisks} });
 });
 
