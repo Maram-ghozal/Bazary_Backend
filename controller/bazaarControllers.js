@@ -407,16 +407,29 @@ const getBazaar = asyncWrapper(async (req, res, next) => {
         return next(error);
     }
 
-      res.json({
+    res.json({
         status: httpStatusText.SUCCESS,
         data: {
-           bazaar
+            bazaar
         }
     });
 });
 
 const updateBazaar = asyncWrapper(async (req, res, next) => {
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
 
+    if (!bazaar) {
+        const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
+        return next(error);
+    }
+
+    const body = { ...req.body };
+    if (req.imagesUrls && req.imagesUrls.length > 0) {
+        body.logoUrl = req.imagesUrls[0];
+    }
+
+    const updated = await Bazaar.findByIdAndUpdate(bazaar._id, body, { new: true });
+    res.json({ status: httpStatusText.SUCCESS, message: "Bazaar updated successfully", data: updated });
 });
 module.exports = {
     getDashboard,
