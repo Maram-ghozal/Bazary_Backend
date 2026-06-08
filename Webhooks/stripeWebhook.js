@@ -2,6 +2,8 @@ const Stripe = require('stripe');
 const Payment = require('../models/paymentModel');
 const Bazaar = require('../models/bazaarModel');
 const BazaarBrand = require('../models/bazaarBrandModel');
+const Order = require('../models/orderModel');
+const Product = require('../models/productModel');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -23,39 +25,53 @@ const handleStripeWebhook = async (req, res) => {
 
     // 2. لو الدفع نجح
     if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object;
+        try {
+            const paymentIntent = event.data.object;
+            const orderId = paymentIntent.metadata?.orderId;
 
-        // بنجيب الـ Payment من الداتابيز عن طريق الـ stripePaymentIntentId
-        const payment = await Payment.findOne({
-            stripePaymentIntentId: paymentIntent.id
-        });
-
-        if (!payment) {
-            return res.status(404).json({ message: 'Payment not found' });
-        }
-
-        // بنحدث الـ Payment status
-        payment.status = 'SUCCESS';
-        await payment.save();
-
-        // لو الدفع كان لبازار
-        if (payment.purpose === 'BAZAAR_SUBSCRIPTION') {
-            await Bazaar.findByIdAndUpdate(payment.bazaarId, {
-                isPaid: true,
-                status: 'UPCOMING'
+            const payment = await Payment.findOne({
+                stripePaymentIntentId: paymentIntent.id
             });
-        }
 
-        // لو الدفع كان لبراند
-        if (payment.purpose === 'BRAND_SUBSCRIPTION') {
-            await BazaarBrand.findOneAndUpdate(
-                { paymentId: payment._id },
-                {
-                    status: 'APPROVED',
-                    paidAt: new Date(),
-                    paidAmount: payment.amount
+            if (payment) {
+                payment.status = 'SUCCESS';
+                await payment.save();
+
+                if (payment.purpose === 'BAZAAR_SUBSCRIPTION') {
+                    await Bazaar.findByIdAndUpdate(payment.bazaarId, {
+                        isPaid: true,
+                        status: 'UPCOMING'
+                    });
                 }
-            );
+
+                if (payment.purpose === 'BRAND_SUBSCRIPTION') {
+                    await BazaarBrand.findOneAndUpdate(
+                        { paymentId: payment._id },
+                        {
+                            status: 'APPROVED',
+                            paidAt: new Date(),
+                            paidAmount: payment.amount
+                        }
+                    );
+                }
+            }
+
+            if (orderId) {
+                const order = await Order.findById(orderId);
+                if (order) {
+                    for (const item of order.items) {
+                        await Product.findByIdAndUpdate(item.productId, {
+                            $inc: { quantity: -item.quantity }
+                        });
+                    }
+                    order.status = 'PREPARING';
+                    await order.save();
+                }
+            }
+
+        } catch (err) {
+            console.error('Webhook error:', err.message);
+            return res.status(500).json({ message: err.message });
         }
     }
 
