@@ -5,42 +5,44 @@ const Customer = require("../../models/customerModel");
 const Bazaar = require('../../models/bazaarModel');
 const Payment = require('../../models/paymentModel');
 const Brand = require("../../models/brandModel");
-const BazaarBrand =require("../../models/bazaarBrandModel");
+const BazaarBrand = require("../../models/bazaarBrandModel");
 const generateToken = require("../../utils/generateWebToken");
+const { createStripePayment } = require('../../services/stripeService');
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require('crypto');
 const asyncWrapper = require("../../middleware/asyncWrapper");
 const sendEmail = require('../../utils/sendEmail');
 // 1---------register customer
-const register= asyncWrapper(async(req,res,next)=>{
-    const{email,password,fullName}=req.body;
-    const existingUser= await User.findOne({email})
-    if (existingUser){
+const register = asyncWrapper(async (req, res, next) => {
+    const { email, password, fullName } = req.body;
+    const existingUser = await User.findOne({ email })
+    if (existingUser) {
         const error = appError.createError("This user is already existing", 400, httpStatus.FAIL);
         return next(error);
     }
-    const hashedPassword= await bcrypt.hash(password,12)
-    const newUser=await User.create({
+    const hashedPassword = await bcrypt.hash(password, 12)
+    const newUser = await User.create({
         email,
-        passwordHash:hashedPassword,
-        role:'CUSTOMER'
+        passwordHash: hashedPassword,
+        role: 'CUSTOMER'
     })
     await Customer.create({
         userId: newUser._id,
         fullName: fullName
     })
-    const tokens= generateToken({
-        id:newUser._id,
-        role:newUser.role
+    const tokens = generateToken({
+        id: newUser._id,
+        role: newUser.role
     })
-    res.cookie("refreshToken",tokens.refreshToken,{
-        httpOnly:true,
+    res.cookie("refreshToken", tokens.refreshToken, {
+        httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax", // بيسمح بتبادل الكوكيز في نفس النطاق بشكل آمن
         maxAge: 7 * 24 * 60 * 60 * 1000
     })
-    res.status(201).json({status: httpStatus.SUCCESS,
+    res.status(201).json({
+        status: httpStatus.SUCCESS,
         message: "user registered successfully",
         data: {
             user: {
@@ -49,31 +51,33 @@ const register= asyncWrapper(async(req,res,next)=>{
                 fullName: fullName,
                 role: newUser.role
             },
-            accessToken: tokens.accessToken 
-        }})
+            accessToken: tokens.accessToken
+        }
+    })
 })
-const login=asyncWrapper(async(req,res,next)=>{
-    const{email,password}=req.body;
-    if(!email || !password){
-        const error=appError.createError("Please provide email and password", 400, httpStatus.FAIL)
+const login = asyncWrapper(async (req, res, next) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        const error = appError.createError("Please provide email and password", 400, httpStatus.FAIL)
         return next(error)
     }
-    const user=await User.findOne({email})
-    if(!user || (!await bcrypt.compare(password,user.passwordHash))){
+    const user = await User.findOne({ email })
+    if (!user || (!await bcrypt.compare(password, user.passwordHash))) {
         const error = appError.createError("Incorrect email or password", 401, httpStatus.FAIL);
         return next(error);
     }
-    const tokens= generateToken({
-        id:user._id,
-        role:user.role
+    const tokens = generateToken({
+        id: user._id,
+        role: user.role
     })
-    res.cookie("refreshToken",tokens.refreshToken,{
-        httpOnly:true,
+    res.cookie("refreshToken", tokens.refreshToken, {
+        httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict", // بيسمح بتبادل الكوكيز في نفس النطاق بشكل آمن
         maxAge: 7 * 24 * 60 * 60 * 1000
     })
-    res.status(200).json({status: httpStatus.SUCCESS,
+    res.status(200).json({
+        status: httpStatus.SUCCESS,
         message: "user loggedin successfully",
         data: {
             user: {
@@ -81,17 +85,18 @@ const login=asyncWrapper(async(req,res,next)=>{
                 email: user.email,
                 role: user.role
             },
-            accessToken: tokens.accessToken 
-        }})
+            accessToken: tokens.accessToken
+        }
+    })
 })
-const logout=asyncWrapper(async(req,res,next)=>{
+const logout = asyncWrapper(async (req, res, next) => {
     res.clearCookie(
-        "refreshToken",{
-            httpOnly:true,
+        "refreshToken", {
+        httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict"
-        })
-        res.status(200).json({
+    })
+    res.status(200).json({
         status: httpStatus.SUCCESS,
         message: "Logged out successfully",
         data: null
@@ -135,7 +140,7 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
 });
 //reset
 const resetPassword = asyncWrapper(async (req, res, next) => {
-    const { email, otp, password } = req.body; 
+    const { email, otp, password } = req.body;
 
     //  تشفير الـ OTP للمقارنة
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
@@ -164,17 +169,17 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 });
 //2----------------register bazaar
 const registerBazaar = asyncWrapper(async (req, res, next) => {
-    const { 
-        email, fullName, phone, whatsapp, 
-        bazaarName, type, bazaarDescription, logoUrl, address, googleMapsLink, startDate, endDate,
-        priceOffline, priceOnline, priceHybrid, paymentMethod 
+    const {
+        email, fullName, phone, whatsapp,
+        bazaarName, type, bazaarDescription, address, googleMapsLink, startDate, endDate,
+        priceOffline, priceOnline, priceHybrid, paymentMethod
     } = req.body;
-
+    const logoUrl = req.imagesUrls?.[0] || null
     // ✅ حساب السعر حسب النوع
     const priceMap = {
         OFFLINE: priceOffline,
-        ONLINE:  priceOnline,
-        HYBRID:  priceHybrid
+        ONLINE: priceOnline,
+        HYBRID: priceHybrid
     };
     const amount = priceMap[type];
     if (!amount) {
@@ -186,7 +191,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
 
     let user = await User.findOne({ email });
     let isNewUser = false;
-    let tempPassword = ""; 
+    let tempPassword = "";
 
     if (user) {
         if (user.role === 'CUSTOMER') {
@@ -194,7 +199,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
             await user.save();
         }
     } else {
-        tempPassword = Math.random().toString(36).slice(-8); 
+        tempPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         user = await User.create({
             email,
@@ -233,12 +238,11 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     });
 
     // ✅ Payment مربوط بالبازار + السعر الصح
-    const newPayment = await Payment.create({
+    const { paymentId, clientSecret } = await createStripePayment({
         userId: user._id,
         bazaarId: newBazaar._id,
         amount,
         purpose: 'BAZAAR_SUBSCRIPTION',
-        status: 'PENDING'
     });
 
     res.status(201).json({
@@ -246,22 +250,25 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
         message: 'Bazaar registered successfully. Pending payment.',
         data: {
             bazaar: newBazaar,
-            paymentId: newPayment._id,
+            paymentId,
+            clientSecret,
             amount,
             isNewUser
-            // TODO: clientSecret هيتضاف هنا لما نضيف Stripe
         }
     });
+
+
+
 });
 //3------------- register bazaar
 const registerBrand = asyncWrapper(async (req, res, next) => {
     const { bazaarId } = req.params;
     const {
         email, firstName, lastName, phone, whatsapp,
-        brandName, brandCategory, brandDescription, logoUrl, location,
+        brandName, brandCategory, brandDescription, location,
         brandType  // 'OFFLINE' | 'ONLINE' | 'HYBRID'
     } = req.body;
-
+    const logoUrl = req.imagesUrls?.[0] || null;
     // 1. التحقق من البازار
     const bazaar = await Bazaar.findById(bazaarId);
     if (!bazaar) {
@@ -274,8 +281,8 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
     // 2. حساب السعر حسب نوع البراند
     const priceMap = {
         OFFLINE: null,
-        ONLINE:  bazaar.priceOnline,
-        HYBRID:  bazaar.priceHybrid
+        ONLINE: bazaar.priceOnline,
+        HYBRID: bazaar.priceHybrid
     };
     const amount = priceMap[brandType];
     if (brandType !== 'OFFLINE' && !amount) {
@@ -328,15 +335,16 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
     if (!brand) {
         brand = await Brand.create({
             userId: user._id,
-            firstName, lastName, phone, whatsapp,
+            firstName, lastName, phone, whatsapp,email,       
+    brandType,
             brandName, brandCategory, brandDescription, logoUrl, location
         });
     }
 
     // 5. التحقق إن البراند مش مسجل في البازار ده قبل كده
-    const existingEntry = await BazaarBrand.findOne({ 
-        bazaarId, 
-        brandId: brand._id 
+    const existingEntry = await BazaarBrand.findOne({
+        bazaarId,
+        brandId: brand._id
     });
     if (existingEntry) {
         return next(appError.createError(
@@ -368,16 +376,17 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
     }
 
     // 8. ONLINE أو HYBRID → Payment
-    const payment = await Payment.create({
+
+
+    const { paymentId, clientSecret } = await createStripePayment({
         userId: user._id,
         bazaarId: bazaar._id,
-        amount,
-        purpose: 'BRAND_SUBSCRIPTION',
-        status: 'PENDING'
+        amount,                        // ✅ amount مش price
+        purpose: 'BRAND_SUBSCRIPTION', // ✅ مش BAZAAR_SUBSCRIPTION
     });
 
     // ربط Payment بالـ BazaarBrand
-    bazaarBrand.paymentId = payment._id;
+    bazaarBrand.paymentId = paymentId; // ✅ مش payment._id
     await bazaarBrand.save();
 
     res.status(201).json({
@@ -386,14 +395,14 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
         data: {
             brand,
             bazaarBrand,
-            paymentId: payment._id,
+            paymentId,
+            clientSecret, // ✅ أضفنا clientSecret
             amount,
             requiresPayment: true,
             isNewUser
-            // TODO: clientSecret هيتضاف هنا لما نضيف Stripe
         }
     });
 });
-module.exports={
-    register,login,logout,forgotPassword,resetPassword,registerBazaar,registerBrand 
+module.exports = {
+    register, login, logout, forgotPassword, resetPassword, registerBazaar, registerBrand
 }

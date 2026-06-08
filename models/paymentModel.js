@@ -18,6 +18,6 @@ const paymentSchema = new mongoose.Schema({
     ref: 'Bazaar',
     default: null
   },
-  stripePaymentIntentId: { type: String }
+ stripePaymentIntentId: { type: String, unique: true, sparse: true }
 }, { timestamps: true })
 module.exports = mongoose.model('Payment', paymentSchema)
