@@ -6,11 +6,15 @@ const cors = require('cors');
 const authRoutes=require('./routes/auth.route')
 const brandRoutes = require('./routes/brand.route');
 const bazaarRoute=require('./routes/bazaarRoute');
-
+const { handleStripeWebhook } = require('./webhooks/stripeWebhook');
 //create express app
 const app = express();
 
-
+// Stripe Webhook
+app.post('/api/webhooks/stripe', 
+    express.raw({ type: 'application/json' }), 
+    handleStripeWebhook
+);
 //import cors middleware to allow cross-origin requests
 app.use(cors());
 
@@ -19,6 +23,7 @@ const url = process.env.MONGO_URL;
 mongoose.connect(url).then(() => {
     console.log("mongodb server started");
 });
+
 
 //middlewareto parse json data from request body
 app.use(express.json());
@@ -38,9 +43,9 @@ app.use((error, req, res, next) => {
 });
 
 // start the server
-// app.listen(process.env.PORT, () => {
-//     console.log(`listening on port ${process.env.PORT}`);
-// })
+app.listen(process.env.PORT, () => {
+    console.log(`listening on port ${process.env.PORT}`);
+ })
 
 
 module.exports = app; 
