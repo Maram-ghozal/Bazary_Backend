@@ -6,7 +6,7 @@ const cors = require('cors');
 const authRoutes=require('./routes/auth.route')
 const brandRoutes = require('./routes/brand.route');
 const bazaarRoute=require('./routes/bazaarRoute');
-const { handleStripeWebhook } = require('./webhooks/stripeWebhook');
+const { handleStripeWebhook } = require('./Webhooks/stripeWebhook');
 //create express app
 const app = express();
 
