@@ -30,10 +30,10 @@ const orderSchema = new mongoose.Schema(
       ref: "Bazaar",
       required: true,
     },
-    paymentId: {                        
+    paymentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Payment',
-      default: null
+      ref: "Payment",
+      default: null,
     },
     items: {
       type: [orderItemSchema],
@@ -48,6 +48,11 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED", "CANCELLED"],
       default: "PENDING",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["CASH", "VISA"],
+      required: true,
     },
   },
   { timestamps: true },

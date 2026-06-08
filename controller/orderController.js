@@ -28,8 +28,10 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
   const { brand } = result;
 
   const order = await Order.findOne({ _id: req.params.orderId, brandId: brand._id })
-    .populate("customerId", "fullName")
-    .populate({ path: "customerId", populate: { path: "userId", select: "email"} })
+    .populate({ path: "customerId", select: "fullName phone address governate city",
+      populate: { path: "userId", select: "email"  }
+    })
+    .populate({ path: "customerId", populate: { path: "userId", select: "email" } })
     .populate("items.productId", "name images");
 
   if (!order) {
@@ -38,9 +40,14 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
 
   const orderData = {
     orderId: order._id,
-    customerName: order.customerId.fullName,
-    customerEmail: order.customerId?.userId?.email,
-    // customerPhone: order.customerId?.phone || null,
+    customer: {
+      fullName: order.customerId?.fullName,
+      email: order.customerId?.userId?.email || null,
+      phone: order.customerId?.phone || null,
+      address: order.customerId?.address || null,
+      governate: order.customerId?.governate || null,
+      city: order.customerId?.city || null,
+    },
     status: order.status,
     totalAmount: order.totalAmount,
     createdAt: order.createdAt,

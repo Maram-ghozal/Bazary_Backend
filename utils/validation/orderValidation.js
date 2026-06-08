@@ -11,6 +11,12 @@ const createOrderSchema = Joi.object({
     )
     .min(1)
     .required(),
+  paymentMethod: Joi.string().valid('CASH', 'VISA').required(),
+  fullName: Joi.string().min(3).max(50),
+  phone: Joi.string().trim().pattern(/^[0-9+\-\s()]+$/),
+  address: Joi.string().min(3),
+  governate: Joi.string(),
+  city: Joi.string(),
 });
 
 // البراند تقدر تغير status الأوردر بس
