@@ -26,6 +26,7 @@ const createBazaarSchema = Joi.object({
 const updateBazaarSchema = Joi.object({
     email: Joi.string().email(),
     phone: Joi.string(),
+    whatsapp: Joi.string().allow('', null),
     bazaarName: Joi.string(),
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
