@@ -431,6 +431,162 @@ const updateBazaar = asyncWrapper(async (req, res, next) => {
     const updated = await Bazaar.findByIdAndUpdate(bazaar._id, body, { new: true });
     res.json({ status: httpStatusText.SUCCESS, message: "Bazaar updated successfully", data: updated });
 });
+
+//get /api/bazaar/brands
+const getAllBrands = asyncWrapper(async (req, res, next) => {
+    const page  = parseInt(req.query.page)  || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip  = (page - 1) * limit;
+
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) {
+        return next(appError.createError("bazaar not found", 404, httpStatusText.FAIL));
+    }
+
+    // كل البراند IDs عشان نعمل aggregate صح
+    const allBazaarBrands = await BazaarBrand.find({ bazaarId: bazaar._id });
+    const allBrandIds = allBazaarBrands.map(b => b.brandId);
+    const totalBrands = allBazaarBrands.length;
+
+    const bazaarBrands = await BazaarBrand.find({ bazaarId: bazaar._id })
+        .skip(skip)
+        .limit(limit)
+        .populate({
+            path: "brandId",
+            populate: { path: "userId", select: "email" }
+        });
+
+    const productStats = await Product.aggregate([
+        { $match: { brandId: { $in: allBrandIds } } },
+        { $group: { _id: "$brandId", totalProducts: { $sum: 1 } } }
+    ]);
+
+    const orderStats = await Order.aggregate([
+        {
+            $match: {
+                brandId: { $in: allBrandIds },
+                status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+            }
+        },
+        {
+            $group: {
+                _id: "$brandId",
+                totalOrders:  { $sum: 1 },
+                totalRevenue: { $sum: "$totalAmount" }
+            }
+        }
+    ]);
+
+    const productMap = new Map(productStats.map(p => [p._id.toString(), p.totalProducts]));
+    const orderMap   = new Map(orderStats.map(o => [o._id.toString(), o]));
+
+    const brands = bazaarBrands.map(b => {
+        const brand     = b.brandId;
+        const id        = brand._id.toString();
+        const orderData = orderMap.get(id) || {};
+
+        return {
+            brandId:       id,
+            brandName:     brand.brandName,
+            brandCategory: brand.brandCategory || null,
+            logoUrl:       brand.logoUrl        || null,
+            brandType:     b.brandType,
+            ownerName:     `${brand.firstName} ${brand.lastName}`,
+            ownerEmail:    brand.userId?.email  || null,
+            ownerPhone:    brand.phone,
+            totalProducts: productMap.get(id)   || 0,
+            totalOrders:   orderData.totalOrders  || 0,
+            totalRevenue:  orderData.totalRevenue || 0,
+            joinedAt:      b.createdAt,
+        };
+    });
+
+    return res.json({
+        status: httpStatusText.SUCCESS,
+        data: {
+            brands,
+            pagination: {
+                totalBrands,
+                totalPages:  Math.ceil(totalBrands / limit),
+                currentPage: page,
+                limit
+            }
+        }
+    });
+});
+
+//get /api/bazaar/brands/:brandId
+const getOneBrand = asyncWrapper(async (req, res, next) => {
+    const { brandId } = req.params;
+
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) {
+        return next(appError.createError("bazaar not found", 404, httpStatusText.FAIL));
+    }
+
+    const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId})
+    .populate({
+        path: "brandId",
+        populate: { path: "userId", select: "email" }
+    });
+
+    if (!bazaarBrand) {
+        return next(appError.createError("brand not found in this bazaar", 404, httpStatusText.FAIL));
+    }
+
+    const brand = bazaarBrand.brandId;
+
+    const products = await Product.find({ brandId: brand._id })
+        .select("name price priceAfterOffer quantity images isActive createdAt")
+        .sort({ createdAt: -1 });
+
+    const orders = await Order.find({
+        brandId: brand._id,
+        status:  { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+    })
+        .select("totalAmount status paymentMethod items createdAt")
+        .sort({ createdAt: -1 });
+
+    const totalRevenue  = orders.reduce((s, o) => s + o.totalAmount, 0);
+    const avgOrderValue = orders.length > 0 ? +(totalRevenue / orders.length).toFixed(2) : 0;
+
+    const ordersByStatus = orders.reduce((acc, o) => {
+        acc[o.status] = (acc[o.status] || 0) + 1;
+        return acc;
+    }, {});
+
+    return res.json({
+        status: httpStatusText.SUCCESS,
+        data: {
+            brand: {
+                brandId:          brand._id,
+                brandName:        brand.brandName,
+                brandCategory:    brand.brandCategory    || null,
+                brandDescription: brand.brandDescription || null,
+                logoUrl:          brand.logoUrl          || null,
+                brandType:        bazaarBrand.brandType,
+                location:         brand.location         || null,
+                ownerName:        `${brand.firstName} ${brand.lastName}`,
+                ownerEmail:       brand.userId?.email    || null,
+                ownerPhone:       brand.phone,
+                ownerWhatsapp:    brand.whatsapp         || null,
+                joinedAt:         bazaarBrand.createdAt,
+                paidAt:           bazaarBrand.paidAt     || null,
+                paidAmount:       bazaarBrand.paidAmount || null,
+            },
+            stats: {
+                totalProducts: products.length,
+                totalOrders:   orders.length,
+                totalRevenue,
+                avgOrderValue,
+                ordersByStatus,
+            },
+            products,
+            orders,
+        }
+    });
+});
+
 module.exports = {
     getDashboard,
     getBrandsComparison,
@@ -439,5 +595,7 @@ module.exports = {
     toggleRegistration,
     updateAutomationRules,
     getBazaar,
-    updateBazaar
+    updateBazaar,
+    getAllBrands,
+    getOneBrand
 };
