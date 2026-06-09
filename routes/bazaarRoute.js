@@ -18,4 +18,9 @@ router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.tog
 router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
 router.get('/setting',bazaarController.getBazaar)
 router.patch("/setting", validate(updateBazaarSchema), upload.single("logoUrl"), uploadOnImageKit,bazaarController.updateBazaar);
+
+// Brands management
+router.get('/brands', bazaarController.getAllBrands);
+router.get('/brands/:brandId', bazaarController.getOneBrand);
+
 module.exports=router
