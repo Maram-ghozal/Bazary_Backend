@@ -103,8 +103,8 @@ const suggestDescription = asyncWrapper(async (req, res, next) => {
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        temperature: 0.9,
-        max_tokens: 120,
+        temperature: 0.7,
+        max_tokens: 80,
         messages: [
           {
             role: "system",
@@ -142,7 +142,11 @@ Rules:
     return next(AppError.createError("AI service failed", 500, httpStatus.ERROR));
   }
 
-  res.json({ status: httpStatus.SUCCESS, data: { suggestion: data.choices?.[0]?.message?.content?.trim() } });
+ const suggestion = data.choices?.[0]?.message?.content?.trim();
+
+await Brand.findByIdAndUpdate( brand._id, { brandDescription: suggestion },{ new: true } );
+
+res.json({ status: httpStatus.SUCCESS, data: { suggestion } });
 });
 
 module.exports = { getMyBrand, updateBrand, getDashboard, suggestDescription};
