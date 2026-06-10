@@ -1,3 +1,4 @@
+require('dotenv').config();
 const asyncWrapper = require("../middleware/asyncWrapper");
 const AppError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
@@ -79,4 +80,69 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
   res.json({ status: httpStatus.SUCCESS, message: "Brand updated successfully", data: updated });
 });
 
-module.exports = { getMyBrand, updateBrand, getDashboard };
+const suggestDescription = asyncWrapper(async (req, res, next) => {
+  const result = await getBrandWithBazaar(req.user.id, next);
+  if (!result) return;
+
+  const { brand } = result;
+  const { regenerate } = req.query;
+
+  const products = await Product.find({ brandId: brand._id, isActive: true })
+    .select("name")
+    .limit(10);
+
+  const productNames = products.map(p => p.name).join(", ") || "Not specified";
+
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.9,
+        max_tokens: 120,
+        messages: [
+          {
+            role: "system",
+            content: "You are a creative branding assistant. Generate very short, high-quality brand descriptions (1-2 sentences only). Always return valid text."
+          },
+          {
+            role: "user",
+            content: `
+Write a short brand description in 1-2 sentences.
+
+Brand Name: ${brand.brandName}
+Category: ${brand.brandCategory || "Not specified"}
+Type: ${brand.brandType || "Not specified"}
+Location: ${brand.location || "Not specified"}
+Products: ${productNames}
+
+${regenerate ? "IMPORTANT: Generate a completely different version from previous ones." : ""}
+
+Rules:
+- Only return the description
+- No explanations
+- No quotes
+- No extra text
+`
+          }
+        ]
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.log("Groq error:", data);
+    return next(AppError.createError("AI service failed", 500, httpStatus.ERROR));
+  }
+
+  res.json({ status: httpStatus.SUCCESS, data: { suggestion: data.choices?.[0]?.message?.content?.trim() } });
+});
+
+module.exports = { getMyBrand, updateBrand, getDashboard, suggestDescription};
