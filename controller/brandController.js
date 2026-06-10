@@ -13,7 +13,7 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
   const result = await getBrandWithBazaar(req.user.id, next);
   if (!result) return;
 
-  const { brand, bazaar } = result;
+  const { brand } = result;
 
   const orders = await Order.find({
     brandId: brand._id,
@@ -88,22 +88,46 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        temperature: 0.4,
-        max_tokens: 300,
+        temperature: 0.2,
+        max_tokens: 400,
         messages: [
           {
             role: "system",
             content: `
-You are an AI business assistant for a brand owner.
+You are a senior e-commerce business analyst AI.
 
-Return ONLY valid JSON like this:
+STRICT RULES:
+- Return ONLY raw JSON
+- DO NOT use markdown (no \`\`\`)
+- DO NOT add explanations
+- MUST use real product names
+- MUST use real numbers
+- MUST be specific and data-driven
+
+OUTPUT FORMAT:
 {
-  "pricing": [],
-  "stock": [],
-  "performance": []
+  "pricing": [
+    {
+      "product": "",
+      "recommendation": "",
+      "reason": ""
+    }
+  ],
+  "stock": [
+    {
+      "product": "",
+      "recommendation": "",
+      "reason": ""
+    }
+  ],
+  "performance": [
+    {
+      "product": "",
+      "recommendation": "",
+      "reason": ""
+    }
+  ]
 }
-
-Be short, practical, and in English and Arabic.
 `
           },
           {
@@ -111,18 +135,17 @@ Be short, practical, and in English and Arabic.
             content: `
 Brand: ${brand.brandName}
 
-Dashboard Data:
-- Total Revenue: ${totalRevenue}
-- Orders Count: ${ordersCount}
-- Avg Order Value: ${avgOrderValue}
+Revenue: ${totalRevenue}
+Orders: ${ordersCount}
+Avg Order Value: ${avgOrderValue}
 
 Top Selling Products:
-${JSON.stringify(topSelling)}
+${JSON.stringify(topSelling, null, 2)}
 
 Low Stock Products:
-${JSON.stringify(inventoryRisks)}
+${JSON.stringify(inventoryRisks, null, 2)}
 
-Give smart business recommendations.
+Give actionable business insights.
 `
           }
         ]
@@ -134,7 +157,9 @@ Give smart business recommendations.
 
   if (!aiResponse.ok) {
     console.log("AI Error:", aiData);
-    return next(AppError.createError("AI service failed", 500, httpStatus.ERROR));
+    return next(
+      AppError.createError("AI service failed", 500, httpStatus.ERROR)
+    );
   }
 
   let aiAssistant = {
@@ -144,9 +169,23 @@ Give smart business recommendations.
   };
 
   try {
-    aiAssistant = JSON.parse(aiData.choices[0].message.content);
+    let content = aiData?.choices?.[0]?.message?.content || "";
+
+    content = content
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    aiAssistant = JSON.parse(content);
   } catch (err) {
-    console.log("JSON Parse Error:", err);
+    console.log("JSON Parse Error (RAW RESPONSE):");
+    console.log(aiData?.choices?.[0]?.message?.content);
+
+    aiAssistant = {
+      pricing: [],
+      stock: [],
+      performance: []
+    };
   }
 
   res.json({
@@ -157,7 +196,7 @@ Give smart business recommendations.
       avgOrderValue,
       topSelling,
       inventoryRisks,
-      aiAssistant 
+      aiAssistant
     }
   });
 });
