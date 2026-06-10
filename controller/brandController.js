@@ -12,10 +12,9 @@ const { getBrandWithBazaar, checkBazaarNotEnded, getStockStatus } = require("../
 const getDashboard = asyncWrapper(async (req, res, next) => {
   const result = await getBrandWithBazaar(req.user.id, next);
   if (!result) return;
+
   const { brand, bazaar } = result;
- 
-  const bazaarEnded = bazaar?.status === "ENDED";
-  //get all orders of the btand without status cancelled
+
   const orders = await Order.find({
     brandId: brand._id,
     status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
@@ -23,36 +22,144 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
 
   const ordersCount = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const avgOrderValue = ordersCount > 0 ? +(totalRevenue / ordersCount).toFixed(2) : 0;
+  const avgOrderValue =
+    ordersCount > 0 ? +(totalRevenue / ordersCount).toFixed(2) : 0;
 
-  // Top Selling Products
-   const topSelling = await Order.aggregate([
-    { $match: { brandId: brand._id, status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] } } },
+  const topSelling = await Order.aggregate([
+    {
+      $match: {
+        brandId: brand._id,
+        status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+      }
+    },
     { $unwind: "$items" },
-    { $group: { _id: "$items.productId", totalSold: { $sum: "$items.quantity" } } },
+    {
+      $group: {
+        _id: "$items.productId",
+        totalSold: { $sum: "$items.quantity" }
+      }
+    },
     { $sort: { totalSold: -1 } },
     { $limit: 5 },
-    { $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "product" } },
+    {
+      $lookup: {
+        from: "products",
+        localField: "_id",
+        foreignField: "_id",
+        as: "product"
+      }
+    },
     { $unwind: "$product" },
-    { $project: { _id: 0 //hideId 
-    , totalSold: 1, name: "$product.name", images: "$product.images", quantity: "$product.quantity", price: "$product.price" } }
+    {
+      $project: {
+        _id: 0,
+        name: "$product.name",
+        price: "$product.price",
+        images: "$product.images",
+        quantity: "$product.quantity",
+        totalSold: 1
+      }
+    }
   ]);
 
-  const rawRisks = await Product.find({ brandId: brand._id, isActive: true, quantity: { $lte: 10 } })
+  const rawRisks = await Product.find({
+    brandId: brand._id,
+    isActive: true,
+    quantity: { $lte: 10 }
+  })
     .select("name images quantity")
-    .sort({ quantity: 1 }) // from lowest to highest quantity
+    .sort({ quantity: 1 })
     .limit(10);
- 
+
   const inventoryRisks = rawRisks.map((p) => ({
     _id: p._id,
     name: p.name,
     images: p.images,
-    quantity: p.quantity,
-    stockStatus: getStockStatus(p.quantity),
+    quantity: p.quantity
   }));
 
-  
-  res.json({ status: httpStatus.SUCCESS, data: { totalRevenue, ordersCount, avgOrderValue, topSelling, inventoryRisks} });
+  const aiResponse = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.4,
+        max_tokens: 300,
+        messages: [
+          {
+            role: "system",
+            content: `
+You are an AI business assistant for a brand owner.
+
+Return ONLY valid JSON like this:
+{
+  "pricing": [],
+  "stock": [],
+  "performance": []
+}
+
+Be short, practical, and in English and Arabic.
+`
+          },
+          {
+            role: "user",
+            content: `
+Brand: ${brand.brandName}
+
+Dashboard Data:
+- Total Revenue: ${totalRevenue}
+- Orders Count: ${ordersCount}
+- Avg Order Value: ${avgOrderValue}
+
+Top Selling Products:
+${JSON.stringify(topSelling)}
+
+Low Stock Products:
+${JSON.stringify(inventoryRisks)}
+
+Give smart business recommendations.
+`
+          }
+        ]
+      })
+    }
+  );
+
+  const aiData = await aiResponse.json();
+
+  if (!aiResponse.ok) {
+    console.log("AI Error:", aiData);
+    return next(AppError.createError("AI service failed", 500, httpStatus.ERROR));
+  }
+
+  let aiAssistant = {
+    pricing: [],
+    stock: [],
+    performance: []
+  };
+
+  try {
+    aiAssistant = JSON.parse(aiData.choices[0].message.content);
+  } catch (err) {
+    console.log("JSON Parse Error:", err);
+  }
+
+  res.json({
+    status: httpStatus.SUCCESS,
+    data: {
+      totalRevenue,
+      ordersCount,
+      avgOrderValue,
+      topSelling,
+      inventoryRisks,
+      aiAssistant 
+    }
+  });
 });
 
 //get /api/brand
