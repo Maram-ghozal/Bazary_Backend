@@ -587,6 +587,215 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
     });
 });
 
+//bazaar ai
+const getBazaarAIInsights = asyncWrapper(async (req, res, next) => {
+
+  const bazaar = await Bazaar.findOne({ userId: req.user.id });
+
+  if (!bazaar) {
+    return next(
+      AppError.createError("bazaar not found", 404, httpStatusText.FAIL)
+    );
+  }
+
+  const bazaarBrands = await BazaarBrand.find({ bazaarId: bazaar._id });
+
+  const brandIds = bazaarBrands.map(b => b.brandId);
+
+  const orders = await Order.find({
+    brandId: { $in: brandIds },
+    status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+  });
+
+  const ordersCount = orders.length;
+  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const avgOrderValue =
+    ordersCount > 0 ? +(totalRevenue / ordersCount).toFixed(2) : 0;
+
+  const brandStats = await Order.aggregate([
+    {
+      $match: {
+        brandId: { $in: brandIds },
+        status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+      }
+    },
+    {
+      $group: {
+        _id: "$brandId",
+        orders: { $sum: 1 },
+        revenue: { $sum: "$totalAmount" }
+      }
+    },
+    {
+      $sort: { revenue: -1 }
+    }
+  ]);
+
+  const brands = await BazaarBrand.find({ bazaarId: bazaar._id })
+    .populate("brandId");
+
+  const brandMap = new Map(
+    brands.map(b => [b.brandId._id.toString(), b.brandId.brandName])
+  );
+
+  const formattedBrands = brandStats.map(b => ({
+    brand: brandMap.get(b._id.toString()) || "Unknown",
+    orders: b.orders,
+    revenue: b.revenue
+  }));
+
+  const salesByHour = await Order.aggregate([
+    {
+      $match: {
+        brandId: { $in: brandIds }
+      }
+    },
+    {
+      $addFields: {
+        hour: { $hour: "$createdAt" }
+      }
+    },
+    {
+      $group: {
+        _id: "$hour",
+        orders: { $sum: 1 },
+        revenue: { $sum: "$totalAmount" }
+      }
+    },
+    {
+      $sort: { _id: 1 }
+    }
+  ]);
+
+  const peakHour =
+    salesByHour.reduce((max, h) =>
+      h.revenue > (max?.revenue || 0) ? h : max,
+      null
+    );
+
+  const aiResponse = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.2,
+        max_tokens: 500,
+        messages: [
+          {
+            role: "system",
+            content: `
+You are an expert Bazaar business intelligence AI.
+
+STRICT RULES:
+- Return ONLY JSON
+- No markdown
+- No explanations
+- Be precise and data-driven
+
+OUTPUT FORMAT:
+{
+  "insights": [
+    {
+      "title": "",
+      "description": ""
+    }
+  ],
+  "recommendations": [
+    {
+      "title": "",
+      "description": ""
+    }
+  ],
+  "alerts": [
+    {
+      "title": "",
+      "description": ""
+    }
+  ]
+}
+`
+          },
+          {
+            role: "user",
+            content: `
+Bazaar Performance Data:
+
+Total Revenue: ${totalRevenue}
+Total Orders: ${ordersCount}
+Average Order Value: ${avgOrderValue}
+
+Top Brands:
+${JSON.stringify(formattedBrands, null, 2)}
+
+Sales By Hour:
+${JSON.stringify(salesByHour, null, 2)}
+
+Peak Hour:
+${JSON.stringify(peakHour, null, 2)}
+
+Analyze this bazaar and give insights, risks, and recommendations.
+`
+          }
+        ]
+      })
+    }
+  );
+
+  const aiData = await aiResponse.json();
+
+  if (!aiResponse.ok) {
+    return next(
+      AppError.createError("AI service failed", 500, httpStatusText.ERROR)
+    );
+  }
+
+  let aiInsights = {
+    insights: [],
+    recommendations: [],
+    alerts: []
+  };
+
+  try {
+    let content = aiData?.choices?.[0]?.message?.content || "";
+
+    content = content
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    aiInsights = JSON.parse(content);
+
+  } catch (err) {
+    console.log("AI Parse Error:", err);
+
+    aiInsights = {
+      insights: [],
+      recommendations: [],
+      alerts: []
+    };
+  }
+
+  return res.json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      summary: {
+        totalRevenue,
+        ordersCount,
+        avgOrderValue,
+        peakHour: peakHour?._id
+      },
+      brandPerformance: formattedBrands,
+      salesByHour,
+      aiInsights
+    }
+  });
+});
+
 module.exports = {
     getDashboard,
     getBrandsComparison,
@@ -597,5 +806,6 @@ module.exports = {
     getBazaar,
     updateBazaar,
     getAllBrands,
-    getOneBrand
+    getOneBrand,
+    getBazaarAIInsights
 };

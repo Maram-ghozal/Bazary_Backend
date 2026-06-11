@@ -10,7 +10,7 @@ const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const { updateBrandSchema } = require("../utils/validation/brandValidation");
 const { createProductSchema, updateProductSchema } = require("../utils/validation/productValidation");
 
-const { getMyBrand, updateBrand, getDashboard } = require("../controller/brandController");
+const { getMyBrand, updateBrand, getDashboard, suggestDescription } = require("../controller/brandController");
 const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProduct } = require("../controller/productController");
 
 const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/orderController");
@@ -33,5 +33,7 @@ router.delete("/products/:productId", deleteProduct);
 router.get("/orders", getAllOrders);
 router.get("/orders/:orderId", getOneOrder);
 router.patch("/orders/:orderId/status", updateOrderStatus);
+
+router.post("/suggest-description", suggestDescription);
 
 module.exports = router;
