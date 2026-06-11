@@ -23,4 +23,6 @@ router.patch("/setting", validate(updateBazaarSchema), upload.single("logoUrl"),
 router.get('/brands', bazaarController.getAllBrands);
 router.get('/brands/:brandId', bazaarController.getOneBrand);
 
+router.post("/dashboard-ai", bazaarController.getBazaarAIInsights);
+
 module.exports=router
