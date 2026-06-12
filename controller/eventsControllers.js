@@ -47,8 +47,12 @@ const getBazaarBrand = asyncWrapper(async (req, res, next) => {
 
   res.json({
     status: httpStatusText.SUCCESS,
-    data: brands.map((item) => item.brandId),
+    data:{
+       bazaar: req.bazaar,
+       brands: brands.map(item => item.brandId)
+    }
   });
+
 });
 
 const getBrandProducts = asyncWrapper(async (req, res, next) => {
