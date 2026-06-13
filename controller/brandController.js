@@ -89,7 +89,7 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         temperature: 0.2,
-        max_tokens: 400,
+        max_tokens: 800,
         messages: [
           {
             role: "system",
@@ -176,7 +176,10 @@ Give actionable business insights.
       .replace(/```/g, "")
       .trim();
 
-    aiAssistant = JSON.parse(content);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found");
+    aiAssistant = JSON.parse(jsonMatch[0]);
+
   } catch (err) {
     console.log("JSON Parse Error (RAW RESPONSE):");
     console.log(aiData?.choices?.[0]?.message?.content);
