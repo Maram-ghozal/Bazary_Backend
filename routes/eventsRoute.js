@@ -1,10 +1,10 @@
 const express=require('express');
 const router=express.Router();
 const eventsController=require('../controller/eventsControllers');
+const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controller/cartController');
 const checkBazaarLive=require('../middleware/checkBazaarLive');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth'); 
-const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controller/cartController');
 
 router.get('/live',eventsController.getLiveBazaars);
 router.get('/upcoming',eventsController.getUpcomingBazaars);
