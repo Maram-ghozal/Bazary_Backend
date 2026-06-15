@@ -9,7 +9,7 @@ const Product = require('../models/productModel');
 const WaitingList = require('../models/waitingListModel');
 const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
 const sendEmail = require('../utils/sendEmail');
-const { createStripePayment } = require('../services/stripeService');
+const { createStripePayment } = require('../Services/stripeService');
 const getDashboard = asyncWrapper(async (req, res, next) => {
 
     const page = parseInt(req.query.page) || 1;
