@@ -25,7 +25,7 @@ router.get('/brands/:brandId', bazaarController.getOneBrand);
 
 router.post("/dashboard-ai", bazaarController.getBazaarAIInsights);
 // Waiting List management
-router.get('/waiting', bazaarController.getWaitingList);
+router.get('/:bazaarId/waiting', bazaarController.getWaitingList);
 router.patch('/waiting/:waitingId/approve', bazaarController.approveBrand);
 router.patch('/waiting/:waitingId/reject', bazaarController.rejectBrand);
 module.exports=router
