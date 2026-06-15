@@ -6,6 +6,7 @@ const Bazaar = require("../../models/bazaarModel");
 const Payment = require("../../models/paymentModel");
 const Brand = require("../../models/brandModel");
 const BazaarBrand = require("../../models/bazaarBrandModel");
+const WaitingList = require('../../models/waitingListModel');
 const generateToken = require("../../utils/generateWebToken");
 const { createStripePayment } = require("../../Services/stripeService");
 const jwt = require("jsonwebtoken");
@@ -323,174 +324,62 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     },
   });
 });
-//3------------- register bazaar
+//3------------- register brand
 const registerBrand = asyncWrapper(async (req, res, next) => {
-  const { bazaarId } = req.params;
-  const {
-    email,
-    firstName,
-    lastName,
-    phone,
-    whatsapp,
-    brandName,
-    brandCategory,
-    brandDescription,
-    location,
-    brandType, // 'OFFLINE' | 'ONLINE' | 'HYBRID'
-  } = req.body;
-  const logoUrl = req.imagesUrls?.[0] || null;
-  // 1. التحقق من البازار
-  const bazaar = await Bazaar.findById(bazaarId);
-  if (!bazaar) {
-    return next(appError.createError("Bazaar not found", 404, httpStatus.FAIL));
-  }
-  if (!bazaar.isAcceptingBrands) {
-    return next(
-      appError.createError(
-        "This bazaar is not accepting brands",
-        400,
-        httpStatus.FAIL,
-      ),
-    );
-  }
+    const { bazaarId } = req.params;
+    const {
+        email, firstName, lastName, phone, whatsapp,
+        brandName, brandCategory, brandDescription, location, brandType
+    } = req.body;
+    const logoUrl = req.imagesUrls?.[0] || null;
 
-  // 2. حساب السعر حسب نوع البراند
-  const priceMap = {
-    OFFLINE: null,
-    ONLINE: bazaar.priceOnline,
-    HYBRID: bazaar.priceHybrid,
-  };
-  const amount = priceMap[brandType];
-  if (brandType !== "OFFLINE" && !amount) {
-    return next(
-      appError.createError(
-        `Bazaar has no price set for ${brandType}`,
-        400,
-        httpStatus.FAIL,
-      ),
-    );
-  }
-
-  // 3. إيجاد أو إنشاء User
-  let user = await User.findOne({ email });
-  let isNewUser = false;
-  let tempPassword = "";
-
-  if (user) {
-    if (user.role === "CUSTOMER") {
-      user.role = "BRAND_OWNER";
-      await user.save();
+    // 1. التحقق من البازار
+    const bazaar = await Bazaar.findById(bazaarId);
+    if (!bazaar) {
+        return next(appError.createError("Bazaar not found", 404, httpStatus.FAIL));
     }
-  } else {
-    tempPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    user = await User.create({
-      email,
-      passwordHash: hashedPassword,
-      role: "BRAND_OWNER",
-    });
-    isNewUser = true;
-  }
+    if (!bazaar.isAcceptingBrands) {
+        return next(appError.createError("This bazaar is not accepting brands", 400, httpStatus.FAIL));
+    }
 
-  if (isNewUser) {
+    // 2. التحقق إن نفس الإيميل في نفس البازار مش موجود
+    const existing = await WaitingList.findOne({ bazaarId, email });
+    if (existing) {
+        return next(appError.createError(
+            "You already applied to this bazaar",
+            400, httpStatus.FAIL
+        ));
+    }
+
+    // 3. حفظ البيانات في WaitingList
+    const waitingEntry = await WaitingList.create({
+        bazaarId,
+        email, firstName, lastName, phone, whatsapp,
+        brandName, brandCategory, brandDescription, logoUrl, location,
+        brandType,
+        status: 'PENDING'
+    });
+
+    // 4. بعت إيميل تأكيد
     try {
-      await sendEmail({
-        email: user.email,
-        subject: "Your Bazaary Account Details",
-        message: `
-                    Welcome to Bazaary! 🎉
-                    Email: ${email}
-                    Password: ${tempPassword}
-                    Please log in and change your password.
-                `,
-      });
+        await sendEmail({
+            email,
+            subject: 'Application Received - Bazaary 🎉',
+            message: `
+                مرحباً ${firstName}!
+                وصلنا طلبك للانضمام لـ ${bazaar.bazaarName}.
+                هيتم مراجعة طلبك وهنبعتلك إيميل بالنتيجة قريباً.
+            `
+        });
     } catch (err) {
-      console.error("Error sending email:", err);
+        console.error("Error sending confirmation email:", err);
     }
-  }
 
-  // 4. إنشاء Brand Profile لو مش موجود
-  let brand = await Brand.findOne({ userId: user._id });
-  if (!brand) {
-    brand = await Brand.create({
-      userId: user._id,
-      firstName,
-      lastName,
-      phone,
-      whatsapp,
-      email,
-      brandType,
-      brandName,
-      brandCategory,
-      brandDescription,
-      logoUrl,
-      location,
+    res.status(201).json({
+        status: httpStatus.SUCCESS,
+        message: 'Application submitted successfully. Waiting for approval.',
+        data: { waitingEntry }
     });
-  }
-
-  // 5. التحقق إن البراند مش مسجل في البازار ده قبل كده
-  const existingEntry = await BazaarBrand.findOne({
-    bazaarId,
-    brandId: brand._id,
-  });
-  if (existingEntry) {
-    return next(
-      appError.createError(
-        "This brand is already registered in this bazaar",
-        400,
-        httpStatus.FAIL,
-      ),
-    );
-  }
-
-  // 6. إنشاء BazaarBrand
-  const bazaarBrand = await BazaarBrand.create({
-    bazaarId,
-    brandId: brand._id,
-    brandType,
-    status: "PENDING",
-  });
-
-  // 7. OFFLINE → مفيش دفع
-  if (brandType === "OFFLINE") {
-    return res.status(201).json({
-      status: httpStatus.SUCCESS,
-      message: "Brand registered successfully. No payment required.",
-      data: {
-        brand,
-        bazaarBrand,
-        requiresPayment: false,
-        isNewUser,
-      },
-    });
-  }
-
-  // 8. ONLINE أو HYBRID → Payment
-
-  const { paymentId, clientSecret } = await createStripePayment({
-    userId: user._id,
-    bazaarId: bazaar._id,
-    amount, // ✅ amount مش price
-    purpose: "BRAND_SUBSCRIPTION", // ✅ مش BAZAAR_SUBSCRIPTION
-  });
-
-  // ربط Payment بالـ BazaarBrand
-  bazaarBrand.paymentId = paymentId; // ✅ مش payment._id
-  await bazaarBrand.save();
-
-  res.status(201).json({
-    status: httpStatus.SUCCESS,
-    message: "Brand registered. Payment pending.",
-    data: {
-      brand,
-      bazaarBrand,
-      paymentId,
-      clientSecret, // ✅ أضفنا clientSecret
-      amount,
-      requiresPayment: true,
-      isNewUser,
-    },
-  });
 });
 module.exports = {
   register,
