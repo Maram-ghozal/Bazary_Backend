@@ -798,8 +798,10 @@ Analyze this bazaar and give insights, risks, and recommendations.
     }
   });
 });
+
 const getWaitingList = asyncWrapper(async (req, res, next) => {
-    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    const { bazaarId } = req.params; 
+    const bazaar = await Bazaar.findOne({ _id: bazaarId, userId: req.user.id });
     if (!bazaar) {
         return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
     }
