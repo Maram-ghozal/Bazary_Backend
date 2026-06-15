@@ -6,7 +6,10 @@ const Brand = require('../models/brandModel');
 const BazaarBrand = require('../models/bazaarBrandModel');
 const Order = require('../models/orderModel');
 const Product = require('../models/productModel');
-
+const WaitingList = require('../models/waitingListModel');
+const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
+const sendEmail = require('../utils/sendEmail');
+const { createStripePayment } = require('../services/stripeService');
 const getDashboard = asyncWrapper(async (req, res, next) => {
 
     const page = parseInt(req.query.page) || 1;
@@ -795,7 +798,118 @@ Analyze this bazaar and give insights, risks, and recommendations.
     }
   });
 });
+const getWaitingList = asyncWrapper(async (req, res, next) => {
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) {
+        return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
+    }
 
+    const waitingList = await WaitingList.find({ bazaarId: bazaar._id })
+        .sort({ createdAt: -1 });
+
+    return res.json({
+        status: httpStatusText.SUCCESS,
+        data: { waitingList }
+    });
+});
+
+const approveBrand = asyncWrapper(async (req, res, next) => {
+    const { waitingId } = req.params;
+
+    const entry = await WaitingList.findById(waitingId).populate('bazaarId');
+    if (!entry) {
+        return next(appError.createError("Application not found", 404, httpStatusText.FAIL));
+    }
+    
+    if (entry.status !== 'PENDING') {
+        return next(appError.createError("Application already processed", 400, httpStatusText.FAIL));
+    }
+
+    entry.status = 'APPROVED';
+
+    if (entry.brandType === 'OFFLINE') {
+        await createBrandFromWaitingList(entry);
+        await entry.save();
+
+        await sendEmail({
+            email: entry.email,
+            subject: 'Application Approved! 🎉',
+            message: `
+                مبروك ${entry.firstName}!
+                طلبك في ${entry.bazaarId.bazaarName} اتوافق عليه.
+                هتلاقي بيانات حسابك في إيميل منفصل.
+            `
+        });
+    } else {
+        const priceMap = {
+            ONLINE: entry.bazaarId.priceOnline,
+            HYBRID: entry.bazaarId.priceHybrid
+        };
+        const amount = priceMap[entry.brandType];
+
+
+        const { clientSecret } = await createStripePayment({
+            userId: null,
+            bazaarId: entry.bazaarId._id,
+            amount,
+            purpose: 'BRAND_SUBSCRIPTION',
+            metadata: { waitingListId: entry._id.toString() }
+        });
+
+        entry.paymentLink = `${process.env.FRONTEND_URL}/payment/${clientSecret}`;
+        await entry.save();
+
+        await sendEmail({
+            email: entry.email,
+            subject: 'Application Approved - Complete Payment 🎉',
+            message: `
+                مبروك ${entry.firstName}!
+                طلبك في ${entry.bazaarId.bazaarName} اتوافق عليه.
+                أكمل الدفع من اللينك ده عشان تتسجل رسمياً:
+                ${entry.paymentLink}
+                بعد الدفع هتوصلك بيانات حسابك على إيميلك.
+            `
+        });
+    }
+
+    return res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'Brand approved successfully',
+        data: { entry }
+    });
+});
+
+const rejectBrand = asyncWrapper(async (req, res, next) => {
+    const { waitingId } = req.params;
+
+    const entry = await WaitingList.findById(waitingId).populate('bazaarId');
+    if (!entry) {
+        return next(appError.createError("Application not found", 404, httpStatusText.FAIL));
+    }
+    if (entry.status !== 'PENDING') {
+        return next(appError.createError("Application already processed", 400, httpStatusText.FAIL));
+    }
+
+    entry.status = 'REJECTED';
+    await entry.save();
+
+    await sendEmail({
+        email: entry.email,
+        subject: 'Application Status Update',
+        message: `
+            مرحباً ${entry.firstName},
+            شكراً لاهتمامك بـ ${entry.bazaarId.bazaarName}.
+            للأسف طلبك مش مناسب في الوقت ده.
+            نتمنى نشوفك في بازارات تانية! 🙏
+        `
+    });
+
+    return res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'Brand rejected successfully',
+        data: { entry }
+    });
+});
 module.exports = {
     getDashboard,
     getBrandsComparison,
@@ -807,5 +921,8 @@ module.exports = {
     updateBazaar,
     getAllBrands,
     getOneBrand,
-    getBazaarAIInsights
+    getBazaarAIInsights,
+    getWaitingList,
+    approveBrand,
+    rejectBrand
 };

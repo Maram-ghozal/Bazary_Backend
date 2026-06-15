@@ -23,7 +23,10 @@ router.post('/forgotPassword', forgotPassword);
 router.post('/resetPassword', resetPassword);
 
 // Bazaar
-router.post('/register/bazaar', validateMiddleware(createBazaarSchema), upload.single("logoUrl"), uploadOnImageKit, registerBazaar);
+router.post('/register/bazaar',  
+    upload.single("logoUrl"), 
+    uploadOnImageKit,validateMiddleware(createBazaarSchema), 
+    registerBazaar);
 
 // Brand 
 router.post('/bazaars/:bazaarId/brands/register',

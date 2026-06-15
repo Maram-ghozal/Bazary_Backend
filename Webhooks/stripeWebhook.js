@@ -4,7 +4,9 @@ const Bazaar = require('../models/bazaarModel');
 const BazaarBrand = require('../models/bazaarBrandModel');
 const Order = require('../models/orderModel');
 const Product = require('../models/productModel');
-
+const WaitingList = require('../models/waitingListModel');
+const { createBrandFromWaitingList } = require('../utils/helperBrand');
+const sendEmail = require('../utils/sendEmail');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const handleStripeWebhook = async (req, res) => {
@@ -44,16 +46,14 @@ const handleStripeWebhook = async (req, res) => {
                     });
                 }
 
-                if (payment.purpose === 'BRAND_SUBSCRIPTION') {
-                    await BazaarBrand.findOneAndUpdate(
-                        { paymentId: payment._id },
-                        {
-                            status: 'APPROVED',
-                            paidAt: new Date(),
-                            paidAmount: payment.amount
-                        }
-                    );
-                }
+            
+if (payment.purpose === 'BRAND_SUBSCRIPTION') {
+    const waitingListId = paymentIntent.metadata.waitingListId;
+    const entry = await WaitingList.findById(waitingListId);
+    if (entry) {
+        await createBrandFromWaitingList(entry, payment._id);
+    }
+}
             }
 
             if (orderId) {
