@@ -24,6 +24,90 @@ const getLiveBazaars = asyncWrapper(async (req, res, next) => {
   });
 });
 
+const getLiveStats = asyncWrapper(async (req, res, next) => {
+  const now = new Date();
+
+  await syncBazaarStatus(now);
+
+  const liveBazaars = await Bazaar.find({ status: "LIVE" }).select(
+    "bazaarName",
+  );
+  const liveBazaarIds = liveBazaars.map((b) => b._id);
+
+  const bazaarBrands = await BazaarBrand.find({
+    bazaarId: { $in: liveBazaarIds },
+  }).populate("brandId", "brandName");
+
+  const soldAgg = await Order.aggregate([
+    {
+      $match: {
+        bazaarId: { $in: liveBazaarIds },
+        status: { $ne: "CANCELLED" },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: { bazaarId: "$bazaarId", brandId: "$brandId" },
+        totalSold: { $sum: "$items.quantity" },
+      },
+    },
+  ]);
+
+  const soldMap = new Map(
+    soldAgg.map((s) => [
+      `${s._id.bazaarId}_${s._id.brandId}`,
+      s.totalSold,
+    ]),
+  );
+
+  let totalBrandsCount = 0;
+  let totalProductsSoldCount = 0;
+
+  const bazaars = liveBazaars.map((bazaar) => {
+    const brandsInThisBazaar = bazaarBrands.filter(
+      (bb) => bb.bazaarId.toString() === bazaar._id.toString(),
+    );
+
+    const brands = brandsInThisBazaar.map((bb) => {
+      const productsSoldCount =
+        soldMap.get(`${bazaar._id}_${bb.brandId?._id}`) || 0;
+
+      return {
+        brandId: bb.brandId?._id,
+        brandName: bb.brandId?.brandName,
+        productsSoldCount,
+      };
+    });
+
+    const bazaarProductsSoldCount = brands.reduce(
+      (sum, b) => sum + b.productsSoldCount,
+      0,
+    );
+
+    totalBrandsCount += brands.length;
+    totalProductsSoldCount += bazaarProductsSoldCount;
+
+    return {
+      bazaarId: bazaar._id,
+      bazaarName: bazaar.bazaarName,
+      brandsCount: brands.length,
+      productsSoldCount: bazaarProductsSoldCount,
+      brands,
+    };
+  });
+
+  res.json({
+    status: httpStatusText.SUCCESS,
+    data: {
+      liveBazaarsCount: liveBazaars.length,
+      totalBrandsCount,
+      totalProductsSoldCount,
+      bazaars,
+    },
+  });
+});
+
 const getUpcomingBazaars = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -257,8 +341,11 @@ const createOrder = asyncWrapper(async (req, res, next) => {
     });
 });
 
+
+
 module.exports = {
   getLiveBazaars,
+  getLiveStats,
   getUpcomingBazaars,
   getBazaarBrand,
   getBrandProducts,
