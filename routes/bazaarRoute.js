@@ -5,6 +5,7 @@ const verifyToken=require('../middleware/verifyToken');
 const requireRole=require('../middleware/roleMiddleware');
 const validate = require("../middleware/validateMiddleware");
 const {updateBazaarSchema } = require("../utils/validation/bazaarValidation");
+const { createBrandSchema,updateBrandSchema } = require("../utils/validation/brandValidation");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 
@@ -18,6 +19,9 @@ router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.tog
 router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
 router.get('/setting',bazaarController.getBazaar)
 router.patch("/setting", validate(updateBazaarSchema), upload.single("logoUrl"), uploadOnImageKit,bazaarController.updateBazaar);
+router.patch('/brands/:brandId', validate(updateBrandSchema), upload.single("logoUrl"), uploadOnImageKit, bazaarController.updateBrandByBazaar);
+router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
+router.post('/brands/add-direct', validate(createBrandSchema), upload.single("logoUrl"), uploadOnImageKit, bazaarController.addBrandDirectly);
 
 // Brands management
 router.get('/brands', bazaarController.getAllBrands);

@@ -7,6 +7,8 @@ const BazaarBrand = require('../models/bazaarBrandModel');
 const Order = require('../models/orderModel');
 const Product = require('../models/productModel');
 const WaitingList = require('../models/waitingListModel');
+const User = require('../models/userModel');
+const bcrypt = require('bcryptjs');
 const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
 const sendEmail = require('../utils/sendEmail');
 const { createStripePayment } = require('../Services/stripeService');
@@ -912,6 +914,142 @@ const rejectBrand = asyncWrapper(async (req, res, next) => {
         data: { entry }
     });
 });
+
+//patch /api/bazaar/brands/:brandId
+const updateBrandByBazaar = asyncWrapper(async (req, res, next) => {
+    const { brandId } = req.params;
+
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
+
+    const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId });
+    if (!bazaarBrand) return next(appError.createError("Brand not found in this bazaar", 404, httpStatusText.FAIL));
+
+    const { email, passwordHash, userId, ...allowedUpdates } = req.body;
+
+    if (req.imagesUrls && req.imagesUrls.length > 0) {
+        allowedUpdates.logoUrl = req.imagesUrls[0];
+    }
+
+    const updatedBrand = await Brand.findByIdAndUpdate(brandId, allowedUpdates, { new: true });
+
+    if (req.body.brandType) {
+        bazaarBrand.brandType = req.body.brandType;
+        await bazaarBrand.save();
+    }
+
+    return res.json({ status: httpStatusText.SUCCESS, message: "Brand updated successfully", data: updatedBrand });
+});
+
+//delete /api/bazaar/brands/:brandId
+const removeBrandFromBazaar = asyncWrapper(async (req, res, next) => {
+    const { brandId } = req.params;
+
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
+
+    const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId });
+    if (!bazaarBrand) return next(appError.createError("Brand not found in this bazaar", 404, httpStatusText.FAIL));
+
+    await BazaarBrand.findByIdAndDelete(bazaarBrand._id);
+    await Product.deleteMany({ brandId, bazaarId: bazaar._id });
+
+    return res.json({ status: httpStatusText.SUCCESS, message: "Brand removed from bazaar successfully" });
+});
+
+const addBrandDirectly = asyncWrapper(async (req, res, next) => {
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    if (!bazaar) return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
+
+    const dataEntry = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        phone: req.body.phone,
+        whatsapp: req.body.whatsapp,
+        email: req.body.email,
+        brandType: req.body.brandType,
+        brandName: req.body.brandName,
+        brandCategory: req.body.brandCategory,
+        brandDescription: req.body.brandDescription,
+        location: req.body.location,
+        bazaarId: bazaar._id,
+    };
+
+    if (req.imagesUrls && req.imagesUrls.length > 0) {
+        dataEntry.logoUrl = req.imagesUrls[0];
+    }
+
+    let user = await User.findOne({ email: dataEntry.email });
+    let tempPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    if (!user) {
+        user = await User.create({
+            email: dataEntry.email,
+            passwordHash: hashedPassword,
+            role: 'BRAND_OWNER'
+        });
+    } else {
+        user.passwordHash = hashedPassword;
+        if (user.role === 'CUSTOMER') {
+            user.role = 'BRAND_OWNER';
+        }
+        await user.save();
+    }
+
+    let brand = await Brand.findOne({ userId: user._id });
+    if (!brand) {
+        brand = await Brand.create({
+            userId:           user._id,
+            firstName:        dataEntry.firstName,
+            lastName:         dataEntry.lastName,
+            phone:            dataEntry.phone,
+            whatsapp:         dataEntry.whatsapp,
+            email:            dataEntry.email,
+            brandType:        dataEntry.brandType,
+            brandName:        dataEntry.brandName,
+            brandCategory:    dataEntry.brandCategory,
+            brandDescription: dataEntry.brandDescription,
+            logoUrl:          dataEntry.logoUrl,
+            location:         dataEntry.location
+        });
+    } else {
+        brand.firstName        = dataEntry.firstName;
+        brand.lastName         = dataEntry.lastName;
+        brand.phone             = dataEntry.phone;
+        brand.whatsapp          = dataEntry.whatsapp;
+        brand.email              = dataEntry.email;
+        brand.brandType          = dataEntry.brandType;
+        brand.brandName          = dataEntry.brandName;
+        brand.brandCategory      = dataEntry.brandCategory;
+        brand.brandDescription   = dataEntry.brandDescription;
+        if (dataEntry.logoUrl) brand.logoUrl = dataEntry.logoUrl;
+        brand.location           = dataEntry.location;
+        await brand.save();
+    }
+
+    await BazaarBrand.create({
+        bazaarId:  dataEntry.bazaarId,
+        brandId:   brand._id,
+        brandType: dataEntry.brandType,
+        paymentId: null,
+        paidAt:    null
+    });
+
+    await sendEmail({
+        email: dataEntry.email,
+        subject: 'Welcome to Bazaary! 🎉',
+        message: `
+            تم تسجيلك بنجاح في Bazaary!
+            Email: ${dataEntry.email}
+            Password: ${tempPassword}
+            برجاء تغيير الباسورد بعد أول دخول.
+        `
+    });
+
+    return res.status(201).json({ status: httpStatusText.SUCCESS, message: "Brand added directly without payment", data: { brand } });
+});
+
 module.exports = {
     getDashboard,
     getBrandsComparison,
@@ -926,5 +1064,8 @@ module.exports = {
     getBazaarAIInsights,
     getWaitingList,
     approveBrand,
-    rejectBrand
+    rejectBrand,
+    updateBrandByBazaar,
+    removeBrandFromBazaar,
+    addBrandDirectly
 };
