@@ -37,7 +37,7 @@ const addToCart = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("Insufficient stock available", 400, httpStatus.FAIL));
   }
 
-  const bazaarBrandLink = await BazaarBrand.findOne({ brandId: product.brandId, status: "APPROVED" });
+  const bazaarBrandLink = await BazaarBrand.findOne({ brandId: product.brandId });
 
   if (!bazaarBrandLink) {
     return next(appError.createError("This brand is not linked to any active bazaar", 400, httpStatus.FAIL));
