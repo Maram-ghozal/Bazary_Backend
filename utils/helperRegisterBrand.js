@@ -46,6 +46,8 @@ const createBrandFromWaitingList = async (entry, paymentId = null) => {
   } else {
     brand.firstName = entry.firstName;
     brand.lastName = entry.lastName;
+    brand.email = entry.email;
+    brand.brandType = entry.brandType;
     brand.phone = entry.phone;
     brand.whatsapp = entry.whatsapp;
     brand.brandName = entry.brandName;
