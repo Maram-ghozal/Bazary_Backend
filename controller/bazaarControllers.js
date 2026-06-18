@@ -860,7 +860,7 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
             metadata: { waitingListId: entry._id.toString() }
         });
 
-        entry.paymentLink = `http://localhost:3000/payment/${clientSecret}`;
+        entry.paymentLink = `${process.env.FRONTEND_URL}/payment/${clientSecret}`;
         await entry.save();
 
         await sendEmail({
