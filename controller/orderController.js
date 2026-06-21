@@ -2,6 +2,7 @@ const asyncWrapper = require("../middleware/asyncWrapper");
 const AppError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
 const Order = require("../models/orderModel");
+const Customer = require("../models/customerModel");
 const { getBrandWithBazaar, checkBazaarNotEnded } = require("../utils/helperBrand");
 
 //get /api/brand/orders
@@ -113,4 +114,99 @@ const updateOrderStatus = asyncWrapper(async (req, res, next) => {
   });
 });
 
-module.exports = { getAllOrders, getOneOrder, updateOrderStatus };
+//get /api/orders/my-orders  (customer)
+const getMyOrders = asyncWrapper(async (req, res, next) => {
+  const customer = await Customer.findOne({ userId: req.user.id });
+ 
+  if (!customer) {
+    return res.json({
+      status: httpStatus.SUCCESS,
+      data: {
+        totalOrders: 0,
+        totalSpent: 0,
+        byBrand: [],
+        byBazaar: [],
+        orders: [],
+      },
+    });
+  }
+ 
+  const orders = await Order.find({ customerId: customer._id })
+    .populate("brandId", "brandName logoUrl")
+    .populate("bazaarId", "bazaarName")
+    .populate("items.productId", "name images price priceAfterOffer")
+    .sort({ createdAt: -1 });
+ 
+  let totalSpent = 0;
+  const brandMap = new Map();
+  const bazaarMap = new Map();
+ 
+  for (const order of orders) {
+    if (order.status === "CANCELLED") continue;
+ 
+    totalSpent += order.totalAmount;
+ 
+    const brandId = order.brandId?._id?.toString();
+    if (brandId) {
+      if (!brandMap.has(brandId)) {
+        brandMap.set(brandId, {
+          brandId,
+          brandName: order.brandId.brandName,
+          logoUrl: order.brandId.logoUrl,
+          ordersCount: 0,
+          totalSpent: 0,
+        });
+      }
+      const b = brandMap.get(brandId);
+      b.ordersCount += 1;
+      b.totalSpent += order.totalAmount;
+    }
+ 
+    const bazaarId = order.bazaarId?._id?.toString();
+    if (bazaarId) {
+      if (!bazaarMap.has(bazaarId)) {
+        bazaarMap.set(bazaarId, {
+          bazaarId,
+          bazaarName: order.bazaarId.bazaarName,
+          ordersCount: 0,
+          totalSpent: 0,
+        });
+      }
+      const bz = bazaarMap.get(bazaarId);
+      bz.ordersCount += 1;
+      bz.totalSpent += order.totalAmount;
+    }
+  }
+ 
+  const formattedOrders = orders.map((order) => ({
+    orderId: order._id,
+    brandId: order.brandId?._id,
+    brandName: order.brandId?.brandName,
+    bazaarId: order.bazaarId?._id,
+    bazaarName: order.bazaarId?.bazaarName,
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    totalAmount: order.totalAmount,
+    createdAt: order.createdAt,
+    items: order.items.map((item) => ({
+      productId: item.productId?._id,
+      name: item.productId?.name,
+      images: item.productId?.images,
+      quantity: item.quantity,
+      price: item.price,
+    })),
+  }));
+ 
+  res.json({
+    status: httpStatus.SUCCESS,
+    data: {
+      totalOrders: orders.length,
+      totalSpent,
+      byBrand: Array.from(brandMap.values()),
+      byBazaar: Array.from(bazaarMap.values()),
+      orders: formattedOrders,
+    },
+  });
+});
+
+module.exports = { getAllOrders, getOneOrder, updateOrderStatus, getMyOrders };

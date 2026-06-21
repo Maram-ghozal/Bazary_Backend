@@ -4,19 +4,71 @@ const httpStatus = require("../utils/httpStatusText");
 const Cart = require("../models/cartModel");
 const Product = require("../models/productModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
+const Bazaar = require("../models/bazaarModel");
+
+const buildBreakdown = (cart) => {
+  const bazaarGroups = new Map();
+
+  for (const item of cart.items) {
+    const brand = item.brandId;
+    const bazaar = item.bazaarId;
+
+    const brandId = brand?._id ? brand._id.toString() : brand.toString();
+    const bazaarId = bazaar?._id ? bazaar._id.toString() : bazaar.toString();
+    const itemSubtotal = item.price * item.quantity;
+
+    if (!bazaarGroups.has(bazaarId)) {
+      bazaarGroups.set(bazaarId, {
+        bazaarId,
+        bazaarName: bazaar?.bazaarName,
+        bazaarSubtotal: 0,
+        brands: new Map(),
+      });
+    }
+    const bazaarGroup = bazaarGroups.get(bazaarId);
+    bazaarGroup.bazaarSubtotal += itemSubtotal;
+
+    if (!bazaarGroup.brands.has(brandId)) {
+      bazaarGroup.brands.set(brandId, {
+        brandId,
+        brandName: brand?.brandName,
+        subtotal: 0,
+        items: [],
+      });
+    }
+    const brandGroup = bazaarGroup.brands.get(brandId);
+    brandGroup.subtotal += itemSubtotal;
+    brandGroup.items.push({
+      productId: item.productId?._id,
+      name: item.productId?.name,
+      images: item.productId?.images,
+      quantity: item.quantity,
+      price: item.price,
+      subtotal: itemSubtotal,
+    });
+  }
+
+  return Array.from(bazaarGroups.values()).map((bazaarGroup) => ({
+    ...bazaarGroup,
+    brands: Array.from(bazaarGroup.brands.values()),
+  }));
+};
 
 const getCart = asyncWrapper(async (req, res, next) => {
   const customerId = req.user.id;
 
   let cart = await Cart.findOne({ customerId })
     .populate('items.productId', 'name images price priceAfterOffer')
-    .populate('items.brandId', 'brandName');
+    .populate('items.brandId', 'brandName')
+    .populate('items.bazaarId', 'bazaarName status');
 
   if (!cart) {
     cart = await Cart.create({ customerId, items: [] });
   }
 
-  res.json({ status: httpStatus.SUCCESS, data: cart });
+  const breakdown = buildBreakdown(cart);
+
+  res.json({ status: httpStatus.SUCCESS, data: { ...cart.toObject(), totalAmount: cart.totalAmount, breakdown, }});
 });
 
 const addToCart = asyncWrapper(async (req, res, next) => {
@@ -24,8 +76,12 @@ const addToCart = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("Unauthorized", 401, httpStatus.FAIL));
   }
 
-  const { productId, quantity = 1 } = req.body;
+  const { productId, bazaarId, quantity = 1 } = req.body;
   const customerId = req.user.id;
+
+  if (!bazaarId) {
+    return next(appError.createError("bazaarId is required", 400, httpStatus.FAIL));
+  }
 
   const product = await Product.findById(productId);
 
@@ -37,19 +93,23 @@ const addToCart = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("Insufficient stock available", 400, httpStatus.FAIL));
   }
 
-  const bazaarBrandLink = await BazaarBrand.findOne({ brandId: product.brandId });
-
-  if (!bazaarBrandLink) {
-    return next(appError.createError("This brand is not linked to any active bazaar", 400, httpStatus.FAIL));
+  const bazaar = await Bazaar.findById(bazaarId);
+  const now = new Date();
+  if (!bazaar || !(bazaar.startDate <= now && now <= bazaar.endDate || bazaar.status !== "live")) {
+    return next(appError.createError("This bazaar is not live", 400, httpStatus.FAIL));
   }
 
-  const bazaarId = bazaarBrandLink.bazaarId;
+  const brandInBazaar = await BazaarBrand.findOne({ brandId: product.brandId, bazaarId });
+
+  if (!brandInBazaar) {
+    return next(appError.createError("This brand is not part of this bazaar", 400, httpStatus.FAIL));
+  }
 
   let cart = await Cart.findOne({ customerId });
   if (!cart) cart = new Cart({ customerId, items: [] });
 
   const existingItem = cart.items.find(
-    item => item.productId.toString() === productId
+    item => item.productId.toString() === productId && item.bazaarId.toString() === bazaarId
   );
 
   const currentPrice = product.priceAfterOffer || product.price;
