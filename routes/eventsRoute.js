@@ -9,6 +9,9 @@ const optionalAuth = require('../middleware/optionalAuth');
 
 router.get('/live',eventsController.getLiveBazaars);
 router.get('/live/stats', eventsController.getLiveStats);
+router.get('/live/brands', eventsController.getAllLiveBrands);
+router.get('/live/products', eventsController.getAllLiveProducts);
+router.get('/live/top-products', eventsController.getTopSellingProducts);
 router.get('/upcoming',eventsController.getUpcomingBazaars);
 router.get('/live/:bazaarId/brands',checkBazaarLive,eventsController.getBazaarBrand);
 router.get('/live/:bazaarId/brands/:brandId/products',checkBazaarLive,eventsController.getBrandProducts);
