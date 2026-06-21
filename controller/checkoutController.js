@@ -6,6 +6,7 @@ const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
 const Customer = require("../models/customerModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
+const Bazaar = require("../models/bazaarModel");
 const { createStripePayment } = require("../Services/stripeService");
 
 const checkout = asyncWrapper(async (req, res, next) => {
@@ -15,7 +16,7 @@ const checkout = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("paymentMethod must be CASH or VISA", 400, httpStatus.FAIL));
   }
 
-  const cart = await Cart.findOne({ customerId: req.user.id }).populate( "items.productId" );
+  const cart = await Cart.findOne({ customerId: req.user.id }).populate("items.productId");
 
   if (!cart || cart.items.length === 0) {
     return next(appError.createError("Cart is empty", 400, httpStatus.FAIL));
@@ -24,7 +25,7 @@ const checkout = asyncWrapper(async (req, res, next) => {
   let customer = await Customer.findOne({ userId: req.user.id });
   if (!customer) {
     if (!fullName || !phone || !address || !governate || !city) {
-      return next( appError.createError( "Please complete your profile or provide fullName, phone, address, governate, city", 400, httpStatus.FAIL ));
+      return next(appError.createError("Please complete your profile or provide fullName, phone, address, governate, city", 400, httpStatus.FAIL));
     }
     customer = await Customer.create({
       userId: req.user.id,
@@ -36,15 +37,24 @@ const checkout = asyncWrapper(async (req, res, next) => {
     });
   }
 
+  const now = new Date();
   const bazaarIds = [...new Set(cart.items.map((i) => i.bazaarId.toString()))];
-  if (bazaarIds.length > 1) {
-    return next( appError.createError("Cart contains items from multiple bazaars. Please clear cart and shop from one bazaar.", 400, httpStatus.FAIL) );
-  }
-  const bazaarId = cart.items[0].bazaarId;
+  const liveBazaars = await Bazaar.find({
+    _id: { $in: bazaarIds },
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+  });
+  const liveBazaarIds = new Set(liveBazaars.map((b) => b._id.toString()));
 
-  const brandMap = new Map(); 
+  for (const id of bazaarIds) {
+    if (!liveBazaarIds.has(id)) {
+      return next( appError.createError("One of the bazaars in your cart is no longer live. Please remove its items and try again.", 400, httpStatus.FAIL ) );
+    }
+  }
+
+  const groupMap = new Map();
   for (const item of cart.items) {
-    const product = item.productId; // populated
+    const product = item.productId; 
 
     if (!product || !product.isActive) {
       return next(
@@ -57,16 +67,18 @@ const checkout = asyncWrapper(async (req, res, next) => {
       );
     }
 
-    const relation = await BazaarBrand.findOne({ brandId: item.brandId, bazaarId });
+    const relation = await BazaarBrand.findOne({ brandId: item.brandId, bazaarId: item.bazaarId });
     if (!relation) {
       return next(
         appError.createError(`Brand is not part of this bazaar`, 400, httpStatus.FAIL)
       );
     }
 
-    const brandKey = item.brandId.toString();
-    if (!brandMap.has(brandKey)) brandMap.set(brandKey, []);
-    brandMap.get(brandKey).push({
+    const groupKey = `${item.bazaarId.toString()}_${item.brandId.toString()}`;
+    if (!groupMap.has(groupKey)) {
+      groupMap.set(groupKey, { bazaarId: item.bazaarId, brandId: item.brandId, items: [] });
+    }
+    groupMap.get(groupKey).items.push({
       productId: product._id,
       quantity: item.quantity,
       price: product.priceAfterOffer ?? product.price,
@@ -76,7 +88,7 @@ const checkout = asyncWrapper(async (req, res, next) => {
   const createdOrders = [];
   const clientSecrets = [];
 
-  for (const [brandId, items] of brandMap) {
+  for (const { bazaarId, brandId, items } of groupMap.values()) {
     const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
     const order = await Order.create({
@@ -111,7 +123,7 @@ const checkout = asyncWrapper(async (req, res, next) => {
       await order.save();
 
       createdOrders.push({ order, requiresPayment: true });
-      clientSecrets.push({ orderId: order._id, clientSecret });
+      clientSecrets.push({ orderId: order._id, bazaarId, brandId, clientSecret });
     }
   }
 

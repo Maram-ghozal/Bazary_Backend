@@ -3,6 +3,7 @@ const router=express.Router();
 const eventsController=require('../controller/eventsControllers');
 const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controller/cartController');
 const { checkout } = require('../controller/checkoutController');
+const { getMyOrders } = require('../controller/orderController');
 const checkBazaarLive=require('../middleware/checkBazaarLive');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth'); 
@@ -16,7 +17,6 @@ router.get('/upcoming',eventsController.getUpcomingBazaars);
 router.get('/live/:bazaarId/brands',checkBazaarLive,eventsController.getBazaarBrand);
 router.get('/live/:bazaarId/brands/:brandId/products',checkBazaarLive,eventsController.getBrandProducts);
 router.get('/live/:bazaarId/brands/:brandId/products/:productId',checkBazaarLive,eventsController.getProductDetails);
-router.post('/live/:bazaarId/brands/:brandId/orders', checkBazaarLive, optionalAuth, eventsController.createOrder);
 
 //checkout
 router.post('/checkout', verifyToken, checkout);
@@ -27,5 +27,8 @@ router.post('/cart', verifyToken, addToCart);
 router.patch('/cart/:productId', verifyToken, updateCartItem);
 router.delete('/cart/:productId', verifyToken, removeFromCart);
 router.delete('/cart', verifyToken, clearCart);
+
+//customer orders
+router.get('/my-orders', verifyToken, getMyOrders);
 
 module.exports=router;
