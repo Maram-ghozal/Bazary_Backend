@@ -108,6 +108,153 @@ const getLiveStats = asyncWrapper(async (req, res, next) => {
   });
 });
 
+const getAllLiveBrands = asyncWrapper(async (req, res, next) => {
+  const now = new Date();
+
+  await syncBazaarStatus(now);
+
+  const liveBazaars = await Bazaar.find({ status: "LIVE" }).select("bazaarName");
+  const liveBazaarIds = liveBazaars.map((b) => b._id);
+
+  if (liveBazaarIds.length === 0) {
+    return res.json({ status: httpStatusText.SUCCESS, data: [] });
+  }
+
+  const bazaarNameMap = new Map(
+    liveBazaars.map((b) => [b._id.toString(), b.bazaarName])
+  );
+
+  const bazaarBrands = await BazaarBrand.find({
+    bazaarId: { $in: liveBazaarIds },
+  }).populate("brandId");
+
+  const result = bazaarBrands
+    .filter((bb) => bb.brandId && bb.brandId.isActive)
+    .map((bb) => ({
+      ...bb.brandId.toObject(),
+      bazaarId: bb.bazaarId,
+      bazaarName: bazaarNameMap.get(bb.bazaarId.toString()),
+    }));
+
+  res.json({ status: httpStatusText.SUCCESS, count: result.length, data: result });
+});
+
+const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
+  const now = new Date();
+
+  await syncBazaarStatus(now);
+
+  const liveBazaars = await Bazaar.find({ status: "LIVE" }).select(
+    "bazaarName"
+  );
+  const liveBazaarIds = liveBazaars.map((b) => b._id);
+
+  if (liveBazaarIds.length === 0) {
+    return res.json({ status: httpStatusText.SUCCESS, data: [] });
+  }
+
+  const bazaarBrands = await BazaarBrand.find({
+    bazaarId: { $in: liveBazaarIds },
+  }).populate("brandId", "brandName isActive");
+
+  const bazaarNameMap = new Map(
+    liveBazaars.map((b) => [b._id.toString(), b.bazaarName])
+  );
+
+  const brandIds = bazaarBrands
+    .filter((bb) => bb.brandId)
+    .map((bb) => bb.brandId._id);
+
+  const products = await Product.find({
+    brandId: { $in: brandIds },
+    isActive: true,
+  }).lean();
+
+  const productsByBrand = new Map();
+  for (const product of products) {
+    const key = product.brandId.toString();
+    if (!productsByBrand.has(key)) productsByBrand.set(key, []);
+    productsByBrand.get(key).push(product);
+  }
+
+  const result = [];
+  for (const bb of bazaarBrands) {
+    if (!bb.brandId || !bb.brandId.isActive) continue;
+
+    const brandId = bb.brandId._id.toString();
+    const brandProducts = productsByBrand.get(brandId) || [];
+
+    for (const product of brandProducts) {
+      result.push({
+        ...product,
+        brandId: bb.brandId._id,
+        brandName: bb.brandId.brandName,
+        bazaarId: bb.bazaarId,
+        bazaarName: bazaarNameMap.get(bb.bazaarId.toString()),
+      });
+    }
+  }
+
+  res.json({ status: httpStatusText.SUCCESS, count: result.length, data: result });
+});
+
+const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
+  const now = new Date();
+
+  await syncBazaarStatus(now);
+
+  const limit = Number(req.query.limit) || 10;
+
+  const liveBazaars = await Bazaar.find({ status: "LIVE" }).select(
+    "bazaarName"
+  );
+  const liveBazaarIds = liveBazaars.map((b) => b._id);
+
+  if (liveBazaarIds.length === 0) {
+    return res.json({ status: httpStatusText.SUCCESS, data: [] });
+  }
+
+  const topAgg = await Order.aggregate([
+    {
+      $match: {
+        bazaarId: { $in: liveBazaarIds },
+        status: { $ne: "CANCELLED" },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: "$items.productId",
+        totalSold: { $sum: "$items.quantity" },
+        totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } },
+      },
+    },
+    { $sort: { totalSold: -1 } },
+    { $limit: limit },
+  ]);
+
+  const productIds = topAgg.map((p) => p._id);
+  const products = await Product.find({ _id: { $in: productIds } })
+    .populate("brandId", "brandName")
+    .lean();
+
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+  const result = topAgg
+    .map((entry) => {
+      const product = productMap.get(entry._id.toString());
+      if (!product) return null;
+      return {
+        ...product,
+        totalSold: entry.totalSold,
+        totalRevenue: entry.totalRevenue,
+      };
+    })
+    .filter(Boolean);
+
+  res.json({ status: httpStatusText.SUCCESS, data: result });
+});
+
 const getUpcomingBazaars = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -333,18 +480,16 @@ const createOrder = asyncWrapper(async (req, res, next) => {
       });
   }
 
-  res
-    .status(201)
-    .json({
-      status: httpStatusText.SUCCESS,
-      data: { order, requiresPayment: false },
-    });
+  res.status(201).json({ status: httpStatusText.SUCCESS, data: { order, requiresPayment: false } });
 });
 
 
 
 module.exports = {
   getLiveBazaars,
+  getAllLiveBrands,
+  getAllLiveProducts,
+  getTopSellingProducts,
   getLiveStats,
   getUpcomingBazaars,
   getBazaarBrand,
