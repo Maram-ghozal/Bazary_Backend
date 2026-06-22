@@ -8,11 +8,6 @@ const brandSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // bazaarId: {                          
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'Bazaar',
-    //   required: true,
-    // },
     firstName: { type: String, required: true, trim: true },
     lastName:  { type: String, required: true, trim: true },
     phone:     { type: String, required: true, trim: true },
