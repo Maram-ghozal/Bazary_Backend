@@ -7,7 +7,10 @@ const Brand = require("../models/brandModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
 const Order = require("../models/orderModel");
 const Product = require("../models/productModel");
+const ProductReview = require("../models/productReviewModel");
+const BrandReview = require("../models/brandReviewModel");
 const syncBazaarStatus = require("../utils/syncBazaarStatus");
+const mongoose=require("mongoose")
 
 const getLiveBazaars = asyncWrapper(async (req, res, next) => {
   const now = new Date();
@@ -23,6 +26,7 @@ const getLiveBazaars = asyncWrapper(async (req, res, next) => {
     data: liveBazaars,
   });
 });
+
 
 const getLiveStats = asyncWrapper(async (req, res, next) => {
   const now = new Date();
@@ -108,6 +112,7 @@ const getLiveStats = asyncWrapper(async (req, res, next) => {
   });
 });
 
+
 const getAllLiveBrands = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -138,6 +143,7 @@ const getAllLiveBrands = asyncWrapper(async (req, res, next) => {
 
   res.json({ status: httpStatusText.SUCCESS, count: result.length, data: result });
 });
+
 
 const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
   const now = new Date();
@@ -198,6 +204,7 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
   res.json({ status: httpStatusText.SUCCESS, count: result.length, data: result });
 });
 
+
 const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -255,6 +262,7 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
   res.json({ status: httpStatusText.SUCCESS, data: result });
 });
 
+
 const getUpcomingBazaars = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -270,6 +278,7 @@ const getUpcomingBazaars = asyncWrapper(async (req, res, next) => {
   });
 });
 
+
 const getBazaarBrand = asyncWrapper(async (req, res, next) => {
   const { bazaarId } = req.params;
   const brands = await BazaarBrand.find({
@@ -278,9 +287,9 @@ const getBazaarBrand = asyncWrapper(async (req, res, next) => {
 
   res.json({
     status: httpStatusText.SUCCESS,
-    data:{
+    data: {
       bazaar: req.bazaar,
-       brands: brands.map(item => item.brandId)
+      brands: brands.map(item => item.brandId)
     }
   });
 
@@ -312,6 +321,7 @@ const getBrandProducts = asyncWrapper(async (req, res, next) => {
     data: products,
   });
 });
+
 
 const getProductDetails = asyncWrapper(async (req, res, next) => {
   const { bazaarId, brandId, productId } = req.params;
@@ -350,6 +360,140 @@ const getProductDetails = asyncWrapper(async (req, res, next) => {
   });
 });
 
+
+const addOrUpdateProductReview = asyncWrapper(async (req, res, next) => {
+
+  const { rating, comment } = req.body;
+  const { productId } = req.params;
+
+  let review = await ProductReview.findOne({
+    userId: req.user.id,
+    productId: productId,
+  });
+
+  if (review) {
+    review.rating = rating;
+    review.comment = comment;
+
+    await review.save();
+
+    return res.json({
+      status: httpStatusText.SUCCESS,
+      message: "Product review updated",
+      review,
+    });
+  }
+
+  review = await ProductReview.create({
+    userId: req.user.id,
+    productId: productId,
+    rating,
+    comment,
+  });
+
+  res.status(201).json({
+    status: httpStatusText.SUCCESS,
+    message: "Product review created",
+    review,
+  });
+});
+
+
+const getProductReview = asyncWrapper(async (req, res, next) => {
+
+  const { productId } = req.params;
+
+
+  const reviews = await ProductReview.find({ productId: productId })
+    .populate("userId", "name");
+
+
+  const avg = await ProductReview.aggregate([
+   { $match: { productId: new mongoose.Types.ObjectId(productId) }},
+    {
+      $group: {
+        _id: "$productId",
+        avgRating: { $avg: "$rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  res.json({
+    status: httpStatusText.SUCCESS,
+    reviews,
+    avgRating: avg[0]?.avgRating || 0,
+    ratingCount: avg[0]?.count || 0,
+  });
+
+});
+
+
+const addOrUpdateBrandReview = asyncWrapper(async (req, res, next) => {
+
+  const { rating } = req.body;
+  const { brandId } = req.params;
+
+  let review = await BrandReview.findOne({
+    userId: req.user.id,
+    brandId: brandId,
+  });
+
+
+  if (review) {
+    review.rating = rating;
+
+    await review.save();
+
+    return res.json({
+      status: httpStatusText.SUCCESS,
+      message: "Brand review updated",
+      review,
+    });
+  }
+
+
+  review = await BrandReview.create({
+    userId: req.user.id,
+    brandId: brandId,
+    rating,
+  });
+
+  return res.status(201).json({
+    status: httpStatusText.SUCCESS,
+    message: "Brand review created",
+    review,
+  });
+});
+
+
+const getBrandReview = asyncWrapper(async (req, res, next) => {
+  const { brandId } = req.params;
+
+
+  const reviews = await BrandReview.find({ brandId: brandId })
+    .populate("userId", "name");
+
+
+  const avg = await BrandReview.aggregate([
+    { $match: { brandId: new mongoose.Types.ObjectId(brandId) } },
+    {
+      $group: {
+        _id: "$brandId",
+        avgRating: { $avg: "$rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return res.json({
+    status: httpStatusText.SUCCESS,
+    reviews,
+    avgRating: avg[0]?.avgRating || 0,
+    ratingCount: avg[0]?.count || 0,
+  });
+});
+
 module.exports = {
   getLiveBazaars,
   getAllLiveBrands,
@@ -360,4 +504,8 @@ module.exports = {
   getBazaarBrand,
   getBrandProducts,
   getProductDetails,
+  addOrUpdateProductReview,
+  getProductReview,
+  addOrUpdateBrandReview,
+  getBrandReview
 };

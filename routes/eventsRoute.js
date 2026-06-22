@@ -7,6 +7,10 @@ const { getMyOrders } = require('../controller/orderController');
 const checkBazaarLive=require('../middleware/checkBazaarLive');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth'); 
+const validate = require("../middleware/validateMiddleware");
+const {createBrandReviewSchema,updateBrandReviewSchema}=require("../utils/validation/brandReviewValidation");
+const {createProductReviewSchema,updateProductReviewSchema}=require("../utils/validation/productReviewValidation");
+
 
 router.get('/live',eventsController.getLiveBazaars);
 router.get('/live/stats', eventsController.getLiveStats);
@@ -30,5 +34,15 @@ router.delete('/cart', verifyToken, clearCart);
 
 //customer orders
 router.get('/my-orders', verifyToken, getMyOrders);
+
+//product review
+router.post("/products/:productId/review",verifyToken,validate(createProductReviewSchema),eventsController.addOrUpdateProductReview);
+router.patch("/products/:productId/review",verifyToken,validate(updateProductReviewSchema),eventsController.addOrUpdateProductReview);
+router.get("/products/:productId/reviews",eventsController.getProductReview);
+
+//brand review
+router.post("/brands/:brandId/review",verifyToken,validate(createBrandReviewSchema),eventsController.addOrUpdateBrandReview);
+router.patch("/brands/:brandId/review",verifyToken,validate(updateBrandReviewSchema),eventsController.addOrUpdateBrandReview);
+router.get("/brands/:brandId/reviews",eventsController.getBrandReview);
 
 module.exports=router;
