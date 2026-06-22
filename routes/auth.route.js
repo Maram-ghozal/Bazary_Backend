@@ -8,10 +8,11 @@ const {
     register, login, logout,
     forgotPassword, resetPassword,
     registerBazaar,
-    registerBrand 
+    registerBrand
 } = require("../controller/Auth/authController");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
+const validateDimensions = require("../middleware/validateDimensions");
 
 // Customer
 router.post('/register/customer', validateMiddleware(registerSchema), register);
@@ -23,16 +24,18 @@ router.post('/forgotPassword', forgotPassword);
 router.post('/resetPassword', resetPassword);
 
 // Bazaar
-router.post('/register/bazaar',  
-    upload.single("logoUrl"), 
-    uploadOnImageKit,validateMiddleware(createBazaarSchema), 
+router.post('/register/bazaar',
+    upload.single("logoUrl"),
+    validateDimensions(1920, 1080),
+    uploadOnImageKit, validateMiddleware(createBazaarSchema),
     registerBazaar);
 
 // Brand 
 router.post('/bazaars/:bazaarId/brands/register',
-    upload.single("logoUrl"), 
+    upload.single("logoUrl"),
+    validateDimensions(1920, 1080),
     uploadOnImageKit,
-    validateMiddleware(createBrandSchema), 
+    validateMiddleware(createBrandSchema),
     registerBrand
 );
-module.exports=router
+module.exports = router

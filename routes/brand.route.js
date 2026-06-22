@@ -15,12 +15,15 @@ const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProdu
 
 const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/orderController");
 
+const validateDimensions = require("../middleware/validateDimensions");
+
+
 router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 
 // Brand
 router.get("/dashboard", getDashboard);
 router.get("/", getMyBrand);
-router.patch("/", validate(updateBrandSchema), upload.single("logoUrl"), uploadOnImageKit, updateBrand);
+router.patch("/", upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit, validate(updateBrandSchema), updateBrand);
 
 // Products
 router.get("/products", getAllProducts);
