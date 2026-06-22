@@ -23,8 +23,13 @@ router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 // Brand
 router.get("/dashboard", getDashboard);
 router.get("/", getMyBrand);
-router.patch("/", upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit, validate(updateBrandSchema), updateBrand);
-
+router.patch("/",upload.single("logoUrl"),validateDimensions(1920, 1080),uploadOnImageKit,
+  (req, res, next) => {
+    if (req.imagesUrls && req.imagesUrls.length > 0) {
+      req.body.logoUrl = req.imagesUrls[0];
+    }
+    next();
+  },validate(updateBrandSchema),updateBrand);
 // Products
 router.get("/products", getAllProducts);
 router.get("/products/:productId", getOneProduct);
