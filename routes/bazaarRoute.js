@@ -8,6 +8,7 @@ const {updateBazaarSchema } = require("../utils/validation/bazaarValidation");
 const { createBrandSchema,updateBrandSchema } = require("../utils/validation/brandValidation");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
+const validateDimensions = require("../middleware/validateDimensions");
 
 router.use(verifyToken,requireRole('BAZAAR_OWNER'));
 
@@ -18,10 +19,10 @@ router.get('/control',bazaarController.getBazaarControl);
 router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.toggleRegistration);
 router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
 router.get('/setting',bazaarController.getBazaar)
-router.patch("/setting", validate(updateBazaarSchema), upload.single("logoUrl"), uploadOnImageKit,bazaarController.updateBazaar);
-router.patch('/brands/:brandId', validate(updateBrandSchema), upload.single("logoUrl"), uploadOnImageKit, bazaarController.updateBrandByBazaar);
+router.patch("/setting", upload.single("logoUrl"), validateDimensions(1920,1080), uploadOnImageKit,validate(updateBazaarSchema),bazaarController.updateBazaar);
+router.patch('/brands/:brandId', upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit,validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
 router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
-router.post('/brands/add-direct', validate(createBrandSchema), upload.single("logoUrl"), uploadOnImageKit, bazaarController.addBrandDirectly);
+router.post('/brands/add-direct', upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit,validate(createBrandSchema), bazaarController.addBrandDirectly);
 
 // Brands management
 router.get('/brands', bazaarController.getAllBrands);
