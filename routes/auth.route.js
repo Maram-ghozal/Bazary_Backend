@@ -8,7 +8,8 @@ const {
     register, login, logout,
     forgotPassword, resetPassword,
     registerBazaar,
-    registerBrand
+    registerBrand,
+    getPackages
 } = require("../controller/Auth/authController");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
@@ -23,6 +24,7 @@ router.post('/logout', logout);
 router.post('/forgotPassword', forgotPassword);
 router.post('/resetPassword', resetPassword);
 
+router.get('/packages',getPackages)
 // Bazaar
 router.post('/register/bazaar',
     upload.single("logoUrl"),

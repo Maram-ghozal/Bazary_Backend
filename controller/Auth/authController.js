@@ -9,6 +9,7 @@ const BazaarBrand = require("../../models/bazaarBrandModel");
 const WaitingList = require('../../models/waitingListModel');
 const generateToken = require("../../utils/generateWebToken");
 const { createStripePayment } = require("../../Services/stripeService");
+const { getPackage, getAllPackages } = require("../../config/packages");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -216,34 +217,27 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     phone,
     whatsapp,
     bazaarName,
-    type,
     bazaarDescription,
     address,
     googleMapsLink,
     startDate,
     endDate,
-    priceOffline,
-    priceOnline,
-    priceHybrid,
+    packageId,
     paymentMethod,
   } = req.body;
   const logoUrl = req.imagesUrls?.[0] || null;
-  // ✅ حساب السعر حسب النوع
-  const priceMap = {
-    OFFLINE: priceOffline,
-    ONLINE: priceOnline,
-    HYBRID: priceHybrid,
-  };
-  const amount = priceMap[type];
-  if (!amount) {
+
+    const selectedPackage = getPackage(packageId);
+  if (!selectedPackage) {
     return next(
       appError.createError(
-        `Price for type ${type} is required`,
+        "Invalid package. Choose: STARTER, BUSINESS, or PREMIUM",
         400,
         httpStatus.FAIL,
       ),
     );
   }
+
 
   let user = await User.findOne({ email });
   let isNewUser = false;
@@ -289,16 +283,18 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     phone,
     whatsapp,
     bazaarName,
-    type,
     bazaarDescription,
     logoUrl,
     address,
     googleMapsLink,
     startDate,
     endDate,
-    priceOffline,
-    priceOnline,
-    priceHybrid,
+    type: selectedPackage.type,
+    packageId: selectedPackage.id,
+    maxBrandCapacity: selectedPackage.maxBrandCapacity,
+    topSearch: selectedPackage.topSearch,
+    aiAssistant: selectedPackage.aiAssistant,
+    paidAmount: selectedPackage.price,
     paymentMethod,
     status: "PENDING_PAYMENT",
     isPaid: false,
@@ -308,8 +304,13 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
   const { paymentId, clientSecret } = await createStripePayment({
     userId: user._id,
     bazaarId: newBazaar._id,
-    amount,
+    amount:selectedPackage.price,
     purpose: "BAZAAR_SUBSCRIPTION",
+        metadata: {
+      packageId: selectedPackage.id,
+      packageName: selectedPackage.name,
+    },
+
   });
 
   res.status(201).json({
@@ -317,9 +318,10 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     message: "Bazaar registered successfully. Pending payment.",
     data: {
       bazaar: newBazaar,
+       package: selectedPackage,
       paymentId,
       clientSecret,
-      amount,
+      amount:selectedPackage.price,
       isNewUser,
     },
   });
@@ -381,6 +383,13 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
         data: { waitingEntry }
     });
 });
+const getPackages = asyncWrapper(async (req, res) => {
+  const packages = getAllPackages();
+  res.status(200).json({
+    status: httpStatus.SUCCESS,
+    data: { packages },
+  });
+});
 module.exports = {
   register,
   login,
@@ -389,4 +398,5 @@ module.exports = {
   resetPassword,
   registerBazaar,
   registerBrand,
+  getPackages
 };

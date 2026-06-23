@@ -6,18 +6,14 @@ const createBazaarSchema = Joi.object({
     phone: Joi.string().required(),
     whatsapp: Joi.string().allow('', null),
     bazaarName: Joi.string().required(),
-    type: Joi.string().valid('OFFLINE', 'ONLINE', 'HYBRID').required(),
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
     address: Joi.string().allow('', null),
     googleMapsLink: Joi.string().uri().allow('', null),
     startDate: Joi.date().iso().allow(null),
     endDate: Joi.date().iso().min(Joi.ref('startDate')).allow(null),
-    priceOffline: Joi.number().min(0).allow(null),
-    priceOnline: Joi.number().min(0).allow(null),
-    priceHybrid: Joi.number().min(0).allow(null),
+    packageId: Joi.string().valid('STARTER', 'BUSINESS', 'PREMIUM').required(),
     paymentMethod: Joi.string().allow('', null),
-    maxBrandCapacity: Joi.number().min(1).allow(null),
     isAcceptingBrands: Joi.boolean().allow(null),
     autoCloseOnFull: Joi.boolean().allow(null),
     autoCloseBeforeEvent: Joi.boolean().allow(null)
@@ -31,14 +27,7 @@ const updateBazaarSchema = Joi.object({
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
 
-    priceOffline: Joi.number().min(0).allow(null),
-    priceOnline: Joi.number().min(0).allow(null),
-    priceHybrid: Joi.number().min(0).allow(null),
-
-    maxBrandCapacity: Joi.number().min(1).allow(null),
-
     isAcceptingBrands: Joi.boolean(),
-
     autoCloseOnFull: Joi.boolean(),
     autoCloseBeforeEvent: Joi.boolean()
 }).min(1);
