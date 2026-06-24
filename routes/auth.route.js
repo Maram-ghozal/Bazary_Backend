@@ -28,14 +28,14 @@ router.get('/packages',getPackages)
 // Bazaar
 router.post('/register/bazaar',
     upload.single("logoUrl"),
-    validateDimensions(1920, 1080),
+    validateDimensions(1983,793),
     uploadOnImageKit, validateMiddleware(createBazaarSchema),
     registerBazaar);
 
 // Brand 
 router.post('/bazaars/:bazaarId/brands/register',
     upload.single("logoUrl"),
-    validateDimensions(1920, 1080),
+    validateDimensions(1983,793),
     uploadOnImageKit,
     validateMiddleware(createBrandSchema),
     registerBrand
