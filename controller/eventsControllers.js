@@ -221,6 +221,10 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
     return res.json({ status: httpStatusText.SUCCESS, data: [] });
   }
 
+  const bazaarNameMap = new Map(
+    liveBazaars.map((b) => [b._id.toString(), b.bazaarName])
+  );
+
   const topAgg = await Order.aggregate([
     {
       $match: {
@@ -231,7 +235,7 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
     { $unwind: "$items" },
     {
       $group: {
-        _id: "$items.productId",
+        _id: { productId: "$items.productId", bazaarId: "$bazaarId" },
         totalSold: { $sum: "$items.quantity" },
         totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } },
       },
@@ -240,7 +244,7 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
     { $limit: limit },
   ]);
 
-  const productIds = topAgg.map((p) => p._id);
+  const productIds = topAgg.map((p) => p._id.productId);
   const products = await Product.find({ _id: { $in: productIds } })
     .populate("brandId", "brandName")
     .lean();
@@ -249,10 +253,13 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
 
   const result = topAgg
     .map((entry) => {
-      const product = productMap.get(entry._id.toString());
+      const product = productMap.get(entry._id.productId.toString());
       if (!product) return null;
+      const bazaarId = entry._id.bazaarId;
       return {
         ...product,
+        bazaarId,
+        bazaarName: bazaarNameMap.get(bazaarId.toString()),
         totalSold: entry.totalSold,
         totalRevenue: entry.totalRevenue,
       };

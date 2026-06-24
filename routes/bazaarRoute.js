@@ -19,10 +19,10 @@ router.get('/control',bazaarController.getBazaarControl);
 router.patch('/control/toggle',validate(updateBazaarSchema),bazaarController.toggleRegistration);
 router.patch('/control/automation',validate(updateBazaarSchema),bazaarController.updateAutomationRules);
 router.get('/setting',bazaarController.getBazaar)
-router.patch("/setting", upload.single("logoUrl"), validateDimensions(1920,1080), uploadOnImageKit,validate(updateBazaarSchema),bazaarController.updateBazaar);
-router.patch('/brands/:brandId', upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit,validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
+router.patch("/setting", upload.single("logoUrl"), validateDimensions(1983, 793), uploadOnImageKit,validate(updateBazaarSchema),bazaarController.updateBazaar);
+router.patch('/brands/:brandId', upload.single("logoUrl"),validateDimensions(1983, 793), uploadOnImageKit,validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
 router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
-router.post('/brands/add-direct', upload.single("logoUrl"),validateDimensions(1920,1080), uploadOnImageKit,validate(createBrandSchema), bazaarController.addBrandDirectly);
+router.post('/brands/add-direct', upload.single("logoUrl"),validateDimensions(1983, 793), uploadOnImageKit,validate(createBrandSchema), bazaarController.addBrandDirectly);
 
 // Brands management
 router.get('/brands', bazaarController.getAllBrands);

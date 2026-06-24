@@ -23,7 +23,7 @@ router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 // Brand
 router.get("/dashboard", getDashboard);
 router.get("/", getMyBrand);
-router.patch("/",upload.single("logoUrl"),validateDimensions(1920, 1080),uploadOnImageKit,
+router.patch("/",upload.single("logoUrl"),validateDimensions(1983, 793),uploadOnImageKit,
   (req, res, next) => {
     if (req.imagesUrls && req.imagesUrls.length > 0) {
       req.body.logoUrl = req.imagesUrls[0];
