@@ -22,6 +22,6 @@ const brandReviewSchema = new mongoose.Schema(
 );
 
 
-brandReviewSchema.index({ user: 1, brand: 1 }, { unique: true });
+brandReviewSchema.index({ userId: 1, brandId: 1 }, { unique: true });
 
 module.exports = mongoose.model("BrandReview", brandReviewSchema);
