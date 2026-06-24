@@ -16,6 +16,10 @@ const checkout = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("paymentMethod must be CASH or VISA", 400, httpStatus.FAIL));
   }
 
+  if (!phone || !address || !governate || !city) {
+    return next(appError.createError("phone, address, governate and city are required", 400, httpStatus.FAIL));
+  }
+
   const cart = await Cart.findOne({ customerId: req.user.id }).populate("items.productId");
 
   if (!cart || cart.items.length === 0) {
@@ -24,8 +28,8 @@ const checkout = asyncWrapper(async (req, res, next) => {
 
   let customer = await Customer.findOne({ userId: req.user.id });
   if (!customer) {
-    if (!fullName || !phone || !address || !governate || !city) {
-      return next(appError.createError("Please complete your profile or provide fullName, phone, address, governate, city", 400, httpStatus.FAIL));
+    if (!fullName) {
+      return next(appError.createError("fullName is required", 400, httpStatus.FAIL));
     }
     customer = await Customer.create({
       userId: req.user.id,
@@ -35,6 +39,13 @@ const checkout = asyncWrapper(async (req, res, next) => {
       governate,
       city,
     });
+  } else {
+    customer.phone = phone;
+    customer.address = address;
+    customer.governate = governate;
+    customer.city = city;
+    if (fullName) customer.fullName = fullName;
+    await customer.save();
   }
 
   const now = new Date();
