@@ -290,6 +290,7 @@ Rules:
                 price: product.price,
                 priceAfterOffer: product.priceAfterOffer,
                 images: product.images,
+                brandId: product.brandId?._id || null,
                 brandName: product.brandId?.brandName,
                 brandCategory: product.brandId?.brandCategory,
                 bazaarId: rec.bazaarId || null,
