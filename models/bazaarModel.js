@@ -17,6 +17,11 @@ const bazaarSchema = new mongoose.Schema({
 
     logoUrl: { type: String },
     type: { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'], required: true },
+    packageId: { type: String, enum: ['STARTER', 'BUSINESS', 'PREMIUM'], required: true },
+    topSearch: { type: Boolean, default: false },
+    aiAssistant: { type: Boolean, default: false },
+    paidAmount: { type: Number, default: 0 },
+
 
     address: { type: String },
 
@@ -28,16 +33,9 @@ const bazaarSchema = new mongoose.Schema({
 
     status: { type: String, enum: ['PENDING_PAYMENT', 'UPCOMING', 'LIVE', 'ENDED'], default: 'PENDING_PAYMENT' },
     isPaid: { type: Boolean, default: false },
-
-    priceOffline: { type: Number },
-
-    priceOnline: { type: Number },
-
-    priceHybrid: { type: Number },
-
     paymentMethod: { type: String },
 
-    maxBrandCapacity: { type: Number, default: 50 },
+    maxBrandCapacity: { type: Number,  required: true},
 
     isAcceptingBrands: { type: Boolean, default: true },
 

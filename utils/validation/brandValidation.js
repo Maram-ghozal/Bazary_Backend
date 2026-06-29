@@ -20,6 +20,7 @@ const updateBrandSchema = Joi.object({
   lastName: Joi.string().trim().min(3),
   phone: Joi.string().trim().pattern(/^[0-9+\-\s()]+$/),
   whatsapp: Joi.string().trim().pattern(/^[0-9+\-\s()]+$/).allow(""),
+  logoUrl: Joi.string().uri(),
   brandName: Joi.string().trim().min(3),
   brandCategory: Joi.string().trim().min(2),
   brandDescription: Joi.string().trim().min(10).max(600),
