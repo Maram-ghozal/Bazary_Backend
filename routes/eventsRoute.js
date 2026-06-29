@@ -4,13 +4,13 @@ const eventsController=require('../controller/eventsControllers');
 const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controller/cartController');
 const { checkout } = require('../controller/checkoutController');
 const { getMyOrders } = require('../controller/orderController');
+const { getWishlist, addToWishlist, removeFromWishlist, mergeWishlist } = require('../controller/wishlistController');
 const checkBazaarLive=require('../middleware/checkBazaarLive');
 const verifyToken = require('../middleware/verifyToken');
 const optionalAuth = require('../middleware/optionalAuth'); 
 const validate = require("../middleware/validateMiddleware");
 const {createBrandReviewSchema,updateBrandReviewSchema}=require("../utils/validation/brandReviewValidation");
 const {createProductReviewSchema,updateProductReviewSchema}=require("../utils/validation/productReviewValidation");
-
 
 router.get('/live',eventsController.getLiveBazaars);
 router.get('/live/stats', eventsController.getLiveStats);
@@ -34,6 +34,12 @@ router.delete('/cart', verifyToken, clearCart);
 
 //customer orders
 router.get('/my-orders', verifyToken, getMyOrders);
+
+//wishlist
+router.get('/wishlist', optionalAuth, getWishlist);
+router.post('/wishlist/merge', verifyToken, mergeWishlist);  
+router.post('/wishlist', optionalAuth, addToWishlist);
+router.delete('/wishlist/:productId', optionalAuth, removeFromWishlist);
 
 //product review
 router.post("/products/:productId/review",verifyToken,validate(createProductReviewSchema),eventsController.addOrUpdateProductReview);
