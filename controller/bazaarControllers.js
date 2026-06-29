@@ -12,13 +12,29 @@ const bcrypt = require('bcryptjs');
 const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
 const sendEmail = require('../utils/sendEmail');
 const { createStripePayment } = require('../Services/stripeService');
+
+
 const getDashboard = asyncWrapper(async (req, res, next) => {
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    const { bazaarId } = req.params;
+
+    let bazaar;
+
+    if (bazaarId) {
+        bazaar = await Bazaar.findOne({
+            _id: bazaarId,
+            userId: req.user.id
+        });
+    } else {
+        bazaar = await Bazaar.findOne({
+            userId: req.user.id,
+            status: { $in: ["UPCOMING", "LIVE"] }
+        });
+    }
 
     if (!bazaar) {
         const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
@@ -130,7 +146,21 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
 
 const getBrandsComparison = asyncWrapper(async (req, res, next) => {
 
-    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    const { bazaarId } = req.params;
+
+    let bazaar;
+
+    if (bazaarId) {
+        bazaar = await Bazaar.findOne({
+            _id: bazaarId,
+            userId: req.user.id
+        });
+    } else {
+        bazaar = await Bazaar.findOne({
+            userId: req.user.id,
+            status: { $in: ["UPCOMING", "LIVE"] }
+        });
+    }
 
     if (!bazaar) {
         const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
@@ -189,7 +219,21 @@ const getBrandsComparison = asyncWrapper(async (req, res, next) => {
 
 const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
-    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    const { bazaarId } = req.params;
+
+    let bazaar;
+
+    if (bazaarId) {
+        bazaar = await Bazaar.findOne({
+            _id: bazaarId,
+            userId: req.user.id
+        });
+    } else {
+        bazaar = await Bazaar.findOne({
+            userId: req.user.id,
+            status: { $in: ["UPCOMING", "LIVE"] }
+        });
+    }
 
     if (!bazaar) {
         const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
@@ -330,7 +374,21 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
 const getBazaarControl = asyncWrapper(async (req, res, next) => {
 
-    const bazaar = await Bazaar.findOne({ userId: req.user.id });
+   const { bazaarId } = req.params;
+
+    let bazaar;
+
+    if (bazaarId) {
+        bazaar = await Bazaar.findOne({
+            _id: bazaarId,
+            userId: req.user.id
+        });
+    } else {
+        bazaar = await Bazaar.findOne({
+            userId: req.user.id,
+            status: { $in: ["UPCOMING", "LIVE"] }
+        });
+    }
 
     if (!bazaar) {
         const error = appError.createError("bazaar not found", 404, httpStatusText.FAIL);
@@ -439,9 +497,9 @@ const updateBazaar = asyncWrapper(async (req, res, next) => {
 
 //get /api/bazaar/brands
 const getAllBrands = asyncWrapper(async (req, res, next) => {
-    const page  = parseInt(req.query.page)  || 1;
+    const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     const bazaar = await Bazaar.findOne({ userId: req.user.id });
     if (!bazaar) {
@@ -476,33 +534,33 @@ const getAllBrands = asyncWrapper(async (req, res, next) => {
         {
             $group: {
                 _id: "$brandId",
-                totalOrders:  { $sum: 1 },
+                totalOrders: { $sum: 1 },
                 totalRevenue: { $sum: "$totalAmount" }
             }
         }
     ]);
 
     const productMap = new Map(productStats.map(p => [p._id.toString(), p.totalProducts]));
-    const orderMap   = new Map(orderStats.map(o => [o._id.toString(), o]));
+    const orderMap = new Map(orderStats.map(o => [o._id.toString(), o]));
 
     const brands = bazaarBrands.map(b => {
-        const brand     = b.brandId;
-        const id        = brand._id.toString();
+        const brand = b.brandId;
+        const id = brand._id.toString();
         const orderData = orderMap.get(id) || {};
 
         return {
-            brandId:       id,
-            brandName:     brand.brandName,
+            brandId: id,
+            brandName: brand.brandName,
             brandCategory: brand.brandCategory || null,
-            logoUrl:       brand.logoUrl        || null,
-            brandType:     b.brandType,
-            ownerName:     `${brand.firstName} ${brand.lastName}`,
-            ownerEmail:    brand.userId?.email  || null,
-            ownerPhone:    brand.phone,
-            totalProducts: productMap.get(id)   || 0,
-            totalOrders:   orderData.totalOrders  || 0,
-            totalRevenue:  orderData.totalRevenue || 0,
-            joinedAt:      b.createdAt,
+            logoUrl: brand.logoUrl || null,
+            brandType: b.brandType,
+            ownerName: `${brand.firstName} ${brand.lastName}`,
+            ownerEmail: brand.userId?.email || null,
+            ownerPhone: brand.phone,
+            totalProducts: productMap.get(id) || 0,
+            totalOrders: orderData.totalOrders || 0,
+            totalRevenue: orderData.totalRevenue || 0,
+            joinedAt: b.createdAt,
         };
     });
 
@@ -512,7 +570,7 @@ const getAllBrands = asyncWrapper(async (req, res, next) => {
             brands,
             pagination: {
                 totalBrands,
-                totalPages:  Math.ceil(totalBrands / limit),
+                totalPages: Math.ceil(totalBrands / limit),
                 currentPage: page,
                 limit
             }
@@ -529,11 +587,11 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
         return next(appError.createError("bazaar not found", 404, httpStatusText.FAIL));
     }
 
-    const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId})
-    .populate({
-        path: "brandId",
-        populate: { path: "userId", select: "email" }
-    });
+    const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId })
+        .populate({
+            path: "brandId",
+            populate: { path: "userId", select: "email" }
+        });
 
     if (!bazaarBrand) {
         return next(appError.createError("brand not found in this bazaar", 404, httpStatusText.FAIL));
@@ -547,12 +605,12 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
 
     const orders = await Order.find({
         brandId: brand._id,
-        status:  { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+        status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
     })
         .select("totalAmount status paymentMethod items createdAt")
         .sort({ createdAt: -1 });
 
-    const totalRevenue  = orders.reduce((s, o) => s + o.totalAmount, 0);
+    const totalRevenue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const avgOrderValue = orders.length > 0 ? +(totalRevenue / orders.length).toFixed(2) : 0;
 
     const ordersByStatus = orders.reduce((acc, o) => {
@@ -564,24 +622,24 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
         status: httpStatusText.SUCCESS,
         data: {
             brand: {
-                brandId:          brand._id,
-                brandName:        brand.brandName,
-                brandCategory:    brand.brandCategory    || null,
+                brandId: brand._id,
+                brandName: brand.brandName,
+                brandCategory: brand.brandCategory || null,
                 brandDescription: brand.brandDescription || null,
-                logoUrl:          brand.logoUrl          || null,
-                brandType:        bazaarBrand.brandType,
-                location:         brand.location         || null,
-                ownerName:        `${brand.firstName} ${brand.lastName}`,
-                ownerEmail:       brand.userId?.email    || null,
-                ownerPhone:       brand.phone,
-                ownerWhatsapp:    brand.whatsapp         || null,
-                joinedAt:         bazaarBrand.createdAt,
-                paidAt:           bazaarBrand.paidAt     || null,
-                paidAmount:       bazaarBrand.paidAmount || null,
+                logoUrl: brand.logoUrl || null,
+                brandType: bazaarBrand.brandType,
+                location: brand.location || null,
+                ownerName: `${brand.firstName} ${brand.lastName}`,
+                ownerEmail: brand.userId?.email || null,
+                ownerPhone: brand.phone,
+                ownerWhatsapp: brand.whatsapp || null,
+                joinedAt: bazaarBrand.createdAt,
+                paidAt: bazaarBrand.paidAt || null,
+                paidAmount: bazaarBrand.paidAmount || null,
             },
             stats: {
                 totalProducts: products.length,
-                totalOrders:   orders.length,
+                totalOrders: orders.length,
                 totalRevenue,
                 avgOrderValue,
                 ordersByStatus,
@@ -595,105 +653,105 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
 //bazaar ai
 const getBazaarAIInsights = asyncWrapper(async (req, res, next) => {
 
-  const bazaar = await Bazaar.findOne({ userId: req.user.id });
+    const bazaar = await Bazaar.findOne({ userId: req.user.id });
 
-  if (!bazaar) {
-    return next(
-      AppError.createError("bazaar not found", 404, httpStatusText.FAIL)
-    );
-  }
+    if (!bazaar) {
+        return next(
+            AppError.createError("bazaar not found", 404, httpStatusText.FAIL)
+        );
+    }
 
-  const bazaarBrands = await BazaarBrand.find({ bazaarId: bazaar._id });
+    const bazaarBrands = await BazaarBrand.find({ bazaarId: bazaar._id });
 
-  const brandIds = bazaarBrands.map(b => b.brandId);
+    const brandIds = bazaarBrands.map(b => b.brandId);
 
-  const orders = await Order.find({
-    brandId: { $in: brandIds },
-    status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
-  });
-
-  const ordersCount = orders.length;
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const avgOrderValue =
-    ordersCount > 0 ? +(totalRevenue / ordersCount).toFixed(2) : 0;
-
-  const brandStats = await Order.aggregate([
-    {
-      $match: {
+    const orders = await Order.find({
         brandId: { $in: brandIds },
         status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
-      }
-    },
-    {
-      $group: {
-        _id: "$brandId",
-        orders: { $sum: 1 },
-        revenue: { $sum: "$totalAmount" }
-      }
-    },
-    {
-      $sort: { revenue: -1 }
-    }
-  ]);
+    });
 
-  const brands = await BazaarBrand.find({ bazaarId: bazaar._id })
-    .populate("brandId");
+    const ordersCount = orders.length;
+    const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const avgOrderValue =
+        ordersCount > 0 ? +(totalRevenue / ordersCount).toFixed(2) : 0;
 
-  const brandMap = new Map(
-    brands.map(b => [b.brandId._id.toString(), b.brandId.brandName])
-  );
+    const brandStats = await Order.aggregate([
+        {
+            $match: {
+                brandId: { $in: brandIds },
+                status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
+            }
+        },
+        {
+            $group: {
+                _id: "$brandId",
+                orders: { $sum: 1 },
+                revenue: { $sum: "$totalAmount" }
+            }
+        },
+        {
+            $sort: { revenue: -1 }
+        }
+    ]);
 
-  const formattedBrands = brandStats.map(b => ({
-    brand: brandMap.get(b._id.toString()) || "Unknown",
-    orders: b.orders,
-    revenue: b.revenue
-  }));
+    const brands = await BazaarBrand.find({ bazaarId: bazaar._id })
+        .populate("brandId");
 
-  const salesByHour = await Order.aggregate([
-    {
-      $match: {
-        brandId: { $in: brandIds }
-      }
-    },
-    {
-      $addFields: {
-        hour: { $hour: "$createdAt" }
-      }
-    },
-    {
-      $group: {
-        _id: "$hour",
-        orders: { $sum: 1 },
-        revenue: { $sum: "$totalAmount" }
-      }
-    },
-    {
-      $sort: { _id: 1 }
-    }
-  ]);
-
-  const peakHour =
-    salesByHour.reduce((max, h) =>
-      h.revenue > (max?.revenue || 0) ? h : max,
-      null
+    const brandMap = new Map(
+        brands.map(b => [b.brandId._id.toString(), b.brandId.brandName])
     );
 
-  const aiResponse = await fetch(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.2,
-        max_tokens: 500,
-        messages: [
-          {
-            role: "system",
-            content: `
+    const formattedBrands = brandStats.map(b => ({
+        brand: brandMap.get(b._id.toString()) || "Unknown",
+        orders: b.orders,
+        revenue: b.revenue
+    }));
+
+    const salesByHour = await Order.aggregate([
+        {
+            $match: {
+                brandId: { $in: brandIds }
+            }
+        },
+        {
+            $addFields: {
+                hour: { $hour: "$createdAt" }
+            }
+        },
+        {
+            $group: {
+                _id: "$hour",
+                orders: { $sum: 1 },
+                revenue: { $sum: "$totalAmount" }
+            }
+        },
+        {
+            $sort: { _id: 1 }
+        }
+    ]);
+
+    const peakHour =
+        salesByHour.reduce((max, h) =>
+            h.revenue > (max?.revenue || 0) ? h : max,
+            null
+        );
+
+    const aiResponse = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.2,
+                max_tokens: 500,
+                messages: [
+                    {
+                        role: "system",
+                        content: `
 You are an expert Bazaar business intelligence AI.
 
 STRICT RULES:
@@ -724,10 +782,10 @@ OUTPUT FORMAT:
   ]
 }
 `
-          },
-          {
-            role: "user",
-            content: `
+                    },
+                    {
+                        role: "user",
+                        content: `
 Bazaar Performance Data:
 
 Total Revenue: ${totalRevenue}
@@ -745,64 +803,64 @@ ${JSON.stringify(peakHour, null, 2)}
 
 Analyze this bazaar and give insights, risks, and recommendations.
 `
-          }
-        ]
-      })
-    }
-  );
-
-  const aiData = await aiResponse.json();
-
-  if (!aiResponse.ok) {
-    return next(
-      AppError.createError("AI service failed", 500, httpStatusText.ERROR)
+                    }
+                ]
+            })
+        }
     );
-  }
 
-  let aiInsights = {
-    insights: [],
-    recommendations: [],
-    alerts: []
-  };
+    const aiData = await aiResponse.json();
 
-  try {
-    let content = aiData?.choices?.[0]?.message?.content || "";
-
-    content = content
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-
-    aiInsights = JSON.parse(content);
-
-  } catch (err) {
-    console.log("AI Parse Error:", err);
-
-    aiInsights = {
-      insights: [],
-      recommendations: [],
-      alerts: []
-    };
-  }
-
-  return res.json({
-    status: httpStatusText.SUCCESS,
-    data: {
-      summary: {
-        totalRevenue,
-        ordersCount,
-        avgOrderValue,
-        peakHour: peakHour?._id
-      },
-      brandPerformance: formattedBrands,
-      salesByHour,
-      aiInsights
+    if (!aiResponse.ok) {
+        return next(
+            AppError.createError("AI service failed", 500, httpStatusText.ERROR)
+        );
     }
-  });
+
+    let aiInsights = {
+        insights: [],
+        recommendations: [],
+        alerts: []
+    };
+
+    try {
+        let content = aiData?.choices?.[0]?.message?.content || "";
+
+        content = content
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        aiInsights = JSON.parse(content);
+
+    } catch (err) {
+        console.log("AI Parse Error:", err);
+
+        aiInsights = {
+            insights: [],
+            recommendations: [],
+            alerts: []
+        };
+    }
+
+    return res.json({
+        status: httpStatusText.SUCCESS,
+        data: {
+            summary: {
+                totalRevenue,
+                ordersCount,
+                avgOrderValue,
+                peakHour: peakHour?._id
+            },
+            brandPerformance: formattedBrands,
+            salesByHour,
+            aiInsights
+        }
+    });
 });
 
 const getWaitingList = asyncWrapper(async (req, res, next) => {
-    const { bazaarId } = req.params; 
+    const { bazaarId } = req.params;
     const bazaar = await Bazaar.findOne({ _id: bazaarId, userId: req.user.id });
     if (!bazaar) {
         return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
@@ -824,7 +882,7 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
     if (!entry) {
         return next(appError.createError("Application not found", 404, httpStatusText.FAIL));
     }
-    
+
     if (entry.status !== 'PENDING') {
         return next(appError.createError("Application already processed", 400, httpStatusText.FAIL));
     }
@@ -1000,40 +1058,40 @@ const addBrandDirectly = asyncWrapper(async (req, res, next) => {
     let brand = await Brand.findOne({ userId: user._id });
     if (!brand) {
         brand = await Brand.create({
-            userId:           user._id,
-            firstName:        dataEntry.firstName,
-            lastName:         dataEntry.lastName,
-            phone:            dataEntry.phone,
-            whatsapp:         dataEntry.whatsapp,
-            email:            dataEntry.email,
-            brandType:        dataEntry.brandType,
-            brandName:        dataEntry.brandName,
-            brandCategory:    dataEntry.brandCategory,
+            userId: user._id,
+            firstName: dataEntry.firstName,
+            lastName: dataEntry.lastName,
+            phone: dataEntry.phone,
+            whatsapp: dataEntry.whatsapp,
+            email: dataEntry.email,
+            brandType: dataEntry.brandType,
+            brandName: dataEntry.brandName,
+            brandCategory: dataEntry.brandCategory,
             brandDescription: dataEntry.brandDescription,
-            logoUrl:          dataEntry.logoUrl,
-            location:         dataEntry.location
+            logoUrl: dataEntry.logoUrl,
+            location: dataEntry.location
         });
     } else {
-        brand.firstName        = dataEntry.firstName;
-        brand.lastName         = dataEntry.lastName;
-        brand.phone             = dataEntry.phone;
-        brand.whatsapp          = dataEntry.whatsapp;
-        brand.email              = dataEntry.email;
-        brand.brandType          = dataEntry.brandType;
-        brand.brandName          = dataEntry.brandName;
-        brand.brandCategory      = dataEntry.brandCategory;
-        brand.brandDescription   = dataEntry.brandDescription;
+        brand.firstName = dataEntry.firstName;
+        brand.lastName = dataEntry.lastName;
+        brand.phone = dataEntry.phone;
+        brand.whatsapp = dataEntry.whatsapp;
+        brand.email = dataEntry.email;
+        brand.brandType = dataEntry.brandType;
+        brand.brandName = dataEntry.brandName;
+        brand.brandCategory = dataEntry.brandCategory;
+        brand.brandDescription = dataEntry.brandDescription;
         if (dataEntry.logoUrl) brand.logoUrl = dataEntry.logoUrl;
-        brand.location           = dataEntry.location;
+        brand.location = dataEntry.location;
         await brand.save();
     }
 
     await BazaarBrand.create({
-        bazaarId:  dataEntry.bazaarId,
-        brandId:   brand._id,
+        bazaarId: dataEntry.bazaarId,
+        brandId: brand._id,
         brandType: dataEntry.brandType,
         paymentId: null,
-        paidAt:    null
+        paidAt: null
     });
 
     await sendEmail({
@@ -1049,6 +1107,29 @@ const addBrandDirectly = asyncWrapper(async (req, res, next) => {
 
     return res.status(201).json({ status: httpStatusText.SUCCESS, message: "Brand added directly without payment", data: { brand } });
 });
+
+
+const getBazaarHistory = asyncWrapper(async (req, res, next) => {
+
+    const bazaars = await Bazaar.find({
+        userId: req.user.id,
+        status: "ENDED"
+    }).select("bazaarName logoUrl");
+
+    const history = bazaars.map(bazaar => ({
+        bazaarId: bazaar._id,
+        bazaarName: bazaar.bazaarName,
+        logo: bazaar.logoUrl
+    }));
+
+    res.json({
+        status: httpStatusText.SUCCESS,
+        data: {
+            bazaars: history
+        }
+    });
+});
+
 
 module.exports = {
     getDashboard,
@@ -1067,5 +1148,6 @@ module.exports = {
     rejectBrand,
     updateBrandByBazaar,
     removeBrandFromBazaar,
-    addBrandDirectly
+    addBrandDirectly,
+    getBazaarHistory
 };
