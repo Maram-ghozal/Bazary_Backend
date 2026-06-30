@@ -14,9 +14,9 @@ const getOwnerQuery = (req) => {
 };
 
 const getOwnerData = (req) => {
-  if (req.user?.id) return { customerId: req.user.id, guestId: null };
+  if (req.user?.id) return { customerId: req.user.id };
   const guestId = req.headers["x-guest-id"];
-  if (guestId) return { guestId, customerId: null };
+  if (guestId) return { guestId };
   return null;
 };
 
@@ -161,7 +161,7 @@ const mergeWishlist = asyncWrapper(async (req, res, next) => {
   const guestWishlist = await Wishlist.findOne({ guestId });
   const customerWishlist =
     (await Wishlist.findOne({ customerId })) ||
-    new Wishlist({ customerId, guestId: null, items: [] });
+    new Wishlist({ customerId, items: [] });
 
   if (guestWishlist?.items?.length) {
     for (const guestItem of guestWishlist.items) {

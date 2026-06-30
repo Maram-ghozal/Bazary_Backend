@@ -9,6 +9,7 @@ const bazaarRoute=require('./routes/bazaarRoute');
 const eventsRoute=require('./routes/eventsRoute');
 const { handleStripeWebhook } = require('./Webhooks/stripeWebhook');
 const assistantRoute = require('./routes/assistant.route');
+const adminRoute = require('./routes/admin.route');
 //create express app
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/brand', brandRoutes);
 app.use('/api/bazaar',bazaarRoute);
 app.use('/api/events',eventsRoute);
 app.use('/api/assistant', assistantRoute);
+app.use('/api/admin', adminRoute);
 
 //handle 404 error for undefined routes
 app.use((req, res) => {

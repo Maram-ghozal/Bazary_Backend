@@ -22,11 +22,9 @@ const wishlistSchema = new mongoose.Schema({
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Customer',
-    default: null,
   },
   guestId: {
     type: String,
-    default: null,
   },
   items: [wishlistItemSchema],
 }, { timestamps: true });
