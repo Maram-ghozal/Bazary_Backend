@@ -68,7 +68,5 @@ router.delete("/products/:id", deleteProduct);
 // Orders
 router.get("/orders", getAllOrders);
 router.get("/orders/:id", getOneOrder);
-router.patch("/orders/:id", updateOrder);
-router.delete("/orders/:id", deleteOrder);
 
 module.exports = router;

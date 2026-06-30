@@ -9,7 +9,7 @@ const Bazaar = require("../models/bazaarModel");
 const Brand = require("../models/brandModel");
 const Product = require("../models/productModel");
 const Order = require("../models/orderModel");
-
+const BazaarBrand = require("../models/bazaarBrandModel"); 
 
 const getPagination = (req) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -43,6 +43,13 @@ const getProfileForUser = async (user) => {
   const ProfileModel = ROLE_PROFILE_MODEL[user.role];
   if (!ProfileModel) return null;
   return ProfileModel.findOne({ userId: user._id });
+};
+
+const getBazaarsForBrand = async (brandId) => {
+  const links = await BazaarBrand.find({ brandId }).populate("bazaarId", "bazaarName");
+  return links
+    .filter((link) => link.bazaarId)
+    .map((link) => ({ id: link.bazaarId._id, name: link.bazaarId.bazaarName }));
 };
 
 //get /api/admin/dashboard
@@ -262,14 +269,24 @@ const getAllBrands = asyncWrapper(async (req, res) => {
     Brand.countDocuments(filter),
   ]);
 
-  res.json({ status: httpStatus.SUCCESS, data: { total, page, limit, brands } });
+  const brandsWithBazaars = await Promise.all(
+    brands.map(async (brand) => {
+      const bazaars = await getBazaarsForBrand(brand._id);
+      return { ...brand.toObject(), bazaars };
+    })
+  );
+
+  res.json({ status: httpStatus.SUCCESS, data: { total, page, limit, brands: brandsWithBazaars } });
 });
 
 //get /api/admin/brands/:id
 const getOneBrand = asyncWrapper(async (req, res, next) => {
   const brand = await findOrFail(Brand, req.params.id, "Brand", next);
   if (!brand) return;
-  res.json({ status: httpStatus.SUCCESS, data: brand });
+
+  const bazaars = await getBazaarsForBrand(brand._id);
+
+  res.json({ status: httpStatus.SUCCESS, data: { ...brand.toObject(), bazaars } });
 });
 
 //patch /api/admin/brands/:id
@@ -300,21 +317,31 @@ const getAllProducts = asyncWrapper(async (req, res) => {
 
   const [products, total] = await Promise.all([
     Product.find(filter)
-      .populate("brandId", "brandName")
+      .populate("brandId", "brandName") 
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
     Product.countDocuments(filter),
   ]);
 
-  res.json({ status: httpStatus.SUCCESS, data: { total, page, limit, products } });
+  const productsWithBazaars = await Promise.all(
+    products.map(async (product) => {
+      const bazaars = product.brandId ? await getBazaarsForBrand(product.brandId._id) : [];
+      return { ...product.toObject(), bazaars };
+    })
+  );
+
+  res.json({ status: httpStatus.SUCCESS, data: { total, page, limit, products: productsWithBazaars } });
 });
 
 //get /api/admin/products/:id
 const getOneProduct = asyncWrapper(async (req, res, next) => {
   const product = await findOrFail(Product, req.params.id, "Product", next, "brandId");
   if (!product) return;
-  res.json({ status: httpStatus.SUCCESS, data: product });
+
+  const bazaars = product.brandId ? await getBazaarsForBrand(product.brandId._id) : [];
+
+  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), bazaars } });
 });
 
 //patch /api/admin/products/:id
@@ -366,23 +393,6 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
   res.json({ status: httpStatus.SUCCESS, data: order });
 });
 
-//patch /api/admin/orders/:id
-const updateOrder = asyncWrapper(async (req, res, next) => {
-  const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  if (!order) return next(AppError.createError("Order not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Order updated successfully", data: order });
-});
-
-//delete /api/admin/orders/:id
-const deleteOrder = asyncWrapper(async (req, res, next) => {
-  const order = await Order.findByIdAndDelete(req.params.id);
-  if (!order) return next(AppError.createError("Order not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Order deleted successfully" });
-});
-
 module.exports = {
   getDashboardStats,
   getMyProfile,
@@ -404,7 +414,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getAllOrders,
-  getOneOrder,
-  updateOrder,
-  deleteOrder,
+  getOneOrder
 };
