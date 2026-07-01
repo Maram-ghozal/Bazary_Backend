@@ -87,7 +87,7 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         temperature: 0.2,
         max_tokens: 800,
         messages: [
@@ -251,7 +251,7 @@ const suggestDescription = asyncWrapper(async (req, res, next) => {
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         temperature: 0.7,
         max_tokens: 80,
         messages: [
