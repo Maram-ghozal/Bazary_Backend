@@ -62,6 +62,13 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
             }
         });
 
+    let filteredBazaarBrands = bazaarBrands;
+    if (req.query.brandStatus === "blocked") {
+        filteredBazaarBrands = bazaarBrands.filter((b) => b.brandId && !b.brandId.isActive);
+    } else if (req.query.brandStatus === "active") {
+        filteredBazaarBrands = bazaarBrands.filter((b) => b.brandId && b.brandId.isActive);
+    }
+
     const productStats = await Product.aggregate([
         {
             $match: {
@@ -105,7 +112,7 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
         orderStats.map(o => [o._id.toString(), o])
     );
 
-    const brands = bazaarBrands.map(b => {
+    const brands = filteredBazaarBrands.map(b => {
         const brand = b.brandId;
         const id = brand._id.toString();
         const orderData = orderMap.get(id) || {};
@@ -118,6 +125,8 @@ const getDashboard = asyncWrapper(async (req, res, next) => {
             totalProducts: productMap.get(id) || 0,
             totalOrders: orderData.totalOrders || 0,
             totalRevenue: orderData.totalRevenue || 0,
+            isActive: brand.isActive,
+            status: brand.isActive ? "ACTIVE" : "BLOCKED",
         };
     });
 
@@ -519,6 +528,13 @@ const getAllBrands = asyncWrapper(async (req, res, next) => {
             populate: { path: "userId", select: "email" }
         });
 
+    let filteredBazaarBrands = bazaarBrands;
+    if (req.query.brandStatus === "blocked") {
+        filteredBazaarBrands = bazaarBrands.filter((b) => b.brandId && !b.brandId.isActive);
+    } else if (req.query.brandStatus === "active") {
+        filteredBazaarBrands = bazaarBrands.filter((b) => b.brandId && b.brandId.isActive);
+    }
+
     const productStats = await Product.aggregate([
         { $match: { brandId: { $in: allBrandIds } } },
         { $group: { _id: "$brandId", totalProducts: { $sum: 1 } } }
@@ -543,7 +559,7 @@ const getAllBrands = asyncWrapper(async (req, res, next) => {
     const productMap = new Map(productStats.map(p => [p._id.toString(), p.totalProducts]));
     const orderMap = new Map(orderStats.map(o => [o._id.toString(), o]));
 
-    const brands = bazaarBrands.map(b => {
+    const brands = filteredBazaarBrands.map(b => {
         const brand = b.brandId;
         const id = brand._id.toString();
         const orderData = orderMap.get(id) || {};
@@ -561,6 +577,8 @@ const getAllBrands = asyncWrapper(async (req, res, next) => {
             totalOrders: orderData.totalOrders || 0,
             totalRevenue: orderData.totalRevenue || 0,
             joinedAt: b.createdAt,
+            isActive: brand.isActive,
+            status: brand.isActive ? "ACTIVE" : "BLOCKED",
         };
     });
 
@@ -603,6 +621,11 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
         .select("name price priceAfterOffer quantity images isActive createdAt")
         .sort({ createdAt: -1 });
 
+    const productsWithStatus = products.map((p) => ({
+        ...p.toObject(),
+        status: p.isActive ? "ACTIVE" : "BLOCKED",
+    }));
+
     const orders = await Order.find({
         brandId: brand._id,
         status: { $in: ["PENDING", "PREPARING", "SHIPPED", "DELIVERED"] }
@@ -636,6 +659,8 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
                 joinedAt: bazaarBrand.createdAt,
                 paidAt: bazaarBrand.paidAt || null,
                 paidAmount: bazaarBrand.paidAmount || null,
+                isActive: brand.isActive,
+                status: brand.isActive ? "ACTIVE" : "BLOCKED",
             },
             stats: {
                 totalProducts: products.length,
@@ -644,7 +669,7 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
                 avgOrderValue,
                 ordersByStatus,
             },
-            products,
+            products: productsWithStatus,
             orders,
         }
     });
