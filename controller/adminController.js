@@ -52,6 +52,12 @@ const getBazaarsForBrand = async (brandId) => {
     .map((link) => ({ id: link.bazaarId._id, name: link.bazaarId.bazaarName }));
 };
 
+// Adds a clear status label so blocked brands/products are obvious in the response
+const withStatusLabel = (doc) => ({
+  ...doc,
+  status: doc.isActive ? "ACTIVE" : "BLOCKED",
+});
+
 //get /api/admin/dashboard
 const getDashboardStats = asyncWrapper(async (req, res) => {
   const [usersCount, bazaarsCount, brandsCount, productsCount, ordersCount] =
@@ -77,6 +83,189 @@ const getDashboardStats = asyncWrapper(async (req, res) => {
       productsCount,
       ordersCount,
       totalRevenue: revenueAgg[0]?.totalRevenue || 0,
+    },
+  });
+});
+
+//get /api/admin/dashboard/analytics
+// Returns the "who's best" insights for the admin dashboard:
+// best bazaars, best brands, best-selling products, most-viewed products,
+// orders breakdown by status, and a revenue trend over the last months.
+const getDashboardAnalytics = asyncWrapper(async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || 5, 1), 20);
+  const notCancelled = { status: { $ne: "CANCELLED" } };
+
+  const [
+    topBazaars,
+    topBrands,
+    topProductsBySales,
+    topProductsByViews,
+    ordersByStatusAgg,
+    revenueTrendAgg,
+  ] = await Promise.all([
+    // Best bazaars by revenue / orders count
+    Order.aggregate([
+      { $match: notCancelled },
+      {
+        $group: {
+          _id: "$bazaarId",
+          totalRevenue: { $sum: "$totalAmount" },
+          totalOrders: { $sum: 1 },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "bazaars",
+          localField: "_id",
+          foreignField: "_id",
+          as: "bazaar",
+        },
+      },
+      { $unwind: "$bazaar" },
+      {
+        $project: {
+          _id: 0,
+          bazaarId: "$_id",
+          bazaarName: "$bazaar.bazaarName",
+          status: "$bazaar.status",
+          totalRevenue: 1,
+          totalOrders: 1,
+        },
+      },
+    ]),
+
+    // Best brands by revenue / orders count
+    Order.aggregate([
+      { $match: notCancelled },
+      {
+        $group: {
+          _id: "$brandId",
+          totalRevenue: { $sum: "$totalAmount" },
+          totalOrders: { $sum: 1 },
+        },
+      },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "brands",
+          localField: "_id",
+          foreignField: "_id",
+          as: "brand",
+        },
+      },
+      { $unwind: "$brand" },
+      {
+        $project: {
+          _id: 0,
+          brandId: "$_id",
+          brandName: "$brand.brandName",
+          brandCategory: "$brand.brandCategory",
+          totalRevenue: 1,
+          totalOrders: 1,
+        },
+      },
+    ]),
+
+    // Best-selling products by quantity sold / revenue generated
+    Order.aggregate([
+      { $match: notCancelled },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.productId",
+          totalSold: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } },
+        },
+      },
+      { $sort: { totalSold: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $lookup: {
+          from: "brands",
+          localField: "product.brandId",
+          foreignField: "_id",
+          as: "brand",
+        },
+      },
+      { $unwind: { path: "$brand", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          productId: "$_id",
+          productName: "$product.name",
+          brandName: "$brand.brandName",
+          totalSold: 1,
+          totalRevenue: 1,
+        },
+      },
+    ]),
+
+    // Most-viewed products (product page opened) - useful for marketing focus
+    Product.find({})
+      .select("name brandId viewsCount images")
+      .populate("brandId", "brandName")
+      .sort({ viewsCount: -1 })
+      .limit(limit),
+
+    // Orders count grouped by status
+    Order.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+
+    // Revenue trend for the last 6 months
+    Order.aggregate([
+      { $match: notCancelled },
+      {
+        $group: {
+          _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
+          totalRevenue: { $sum: "$totalAmount" },
+          totalOrders: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.year": -1, "_id.month": -1 } },
+      { $limit: 6 },
+    ]),
+  ]);
+
+  const ordersByStatus = ordersByStatusAgg.reduce((acc, o) => {
+    acc[o._id] = o.count;
+    return acc;
+  }, {});
+
+  const revenueTrend = revenueTrendAgg
+    .map((r) => ({
+      year: r._id.year,
+      month: r._id.month,
+      totalRevenue: r.totalRevenue,
+      totalOrders: r.totalOrders,
+    }))
+    .reverse();
+
+  res.json({
+    status: httpStatus.SUCCESS,
+    data: {
+      topBazaars,
+      topBrands,
+      topProductsBySales,
+      topProductsByViews: topProductsByViews.map((p) => ({
+        productId: p._id,
+        productName: p.name,
+        brandName: p.brandId?.brandName || null,
+        viewsCount: p.viewsCount,
+        images: p.images,
+      })),
+      ordersByStatus,
+      revenueTrend,
     },
   });
 });
@@ -249,13 +438,6 @@ const updateBazaar = asyncWrapper(async (req, res, next) => {
   res.json({ status: httpStatus.SUCCESS, message: "Bazaar updated successfully", data: bazaar });
 });
 
-//delete /api/admin/bazaars/:id
-const deleteBazaar = asyncWrapper(async (req, res, next) => {
-  const bazaar = await Bazaar.findByIdAndDelete(req.params.id);
-  if (!bazaar) return next(AppError.createError("Bazaar not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Bazaar deleted successfully" });
-});
-
 //get /api/admin/brands
 const getAllBrands = asyncWrapper(async (req, res) => {
   const { page, limit, skip } = getPagination(req);
@@ -263,6 +445,8 @@ const getAllBrands = asyncWrapper(async (req, res) => {
   if (req.query.search) {
     filter.brandName = { $regex: req.query.search, $options: "i" };
   }
+  if (req.query.status === "blocked") filter.isActive = false;
+  if (req.query.status === "active") filter.isActive = true;
 
   const [brands, total] = await Promise.all([
     Brand.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -272,7 +456,7 @@ const getAllBrands = asyncWrapper(async (req, res) => {
   const brandsWithBazaars = await Promise.all(
     brands.map(async (brand) => {
       const bazaars = await getBazaarsForBrand(brand._id);
-      return { ...brand.toObject(), bazaars };
+      return withStatusLabel({ ...brand.toObject(), bazaars });
     })
   );
 
@@ -286,7 +470,7 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
 
   const bazaars = await getBazaarsForBrand(brand._id);
 
-  res.json({ status: httpStatus.SUCCESS, data: { ...brand.toObject(), bazaars } });
+  res.json({ status: httpStatus.SUCCESS, data: withStatusLabel({ ...brand.toObject(), bazaars }) });
 });
 
 //patch /api/admin/brands/:id
@@ -296,14 +480,21 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
     runValidators: true,
   });
   if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Brand updated successfully", data: brand });
+  res.json({ status: httpStatus.SUCCESS, message: "Brand updated successfully", data: withStatusLabel(brand.toObject()) });
 });
 
 //delete /api/admin/brands/:id
 const deleteBrand = asyncWrapper(async (req, res, next) => {
-  const brand = await Brand.findByIdAndDelete(req.params.id);
+  const brand = await Brand.findByIdAndUpdate(
+    req.params.id,
+    { isActive: false },
+    { new: true }
+  );
   if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Brand deleted successfully" });
+
+  await Product.updateMany({ brandId: brand._id }, { isActive: false });
+
+  res.json({ status: httpStatus.SUCCESS, message: "Brand blocked successfully", data: withStatusLabel(brand.toObject()) });
 });
 
 //get /api/admin/products
@@ -314,11 +505,15 @@ const getAllProducts = asyncWrapper(async (req, res) => {
   if (req.query.search) {
     filter.name = { $regex: req.query.search, $options: "i" };
   }
+  if (req.query.status === "blocked") filter.isActive = false;
+  if (req.query.status === "active") filter.isActive = true;
+
+  const sort = req.query.sort === "views" ? { viewsCount: -1 } : { createdAt: -1 };
 
   const [products, total] = await Promise.all([
     Product.find(filter)
       .populate("brandId", "brandName") 
-      .sort({ createdAt: -1 })
+      .sort(sort)
       .skip(skip)
       .limit(limit),
     Product.countDocuments(filter),
@@ -327,7 +522,7 @@ const getAllProducts = asyncWrapper(async (req, res) => {
   const productsWithBazaars = await Promise.all(
     products.map(async (product) => {
       const bazaars = product.brandId ? await getBazaarsForBrand(product.brandId._id) : [];
-      return { ...product.toObject(), bazaars };
+      return withStatusLabel({ ...product.toObject(), bazaars });
     })
   );
 
@@ -341,7 +536,7 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
 
   const bazaars = product.brandId ? await getBazaarsForBrand(product.brandId._id) : [];
 
-  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), bazaars } });
+  res.json({ status: httpStatus.SUCCESS, data: withStatusLabel({ ...product.toObject(), bazaars }) });
 });
 
 //patch /api/admin/products/:id
@@ -351,14 +546,18 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
     runValidators: true,
   });
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Product updated successfully", data: product });
+  res.json({ status: httpStatus.SUCCESS, message: "Product updated successfully", data: withStatusLabel(product.toObject()) });
 });
 
 //delete /api/admin/products/:id
 const deleteProduct = asyncWrapper(async (req, res, next) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
+  const product = await Product.findByIdAndUpdate(
+    req.params.id,
+    { isActive: false },
+    { new: true }
+  );
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
-  res.json({ status: httpStatus.SUCCESS, message: "Product deleted successfully" });
+  res.json({ status: httpStatus.SUCCESS, message: "Product blocked successfully", data: withStatusLabel(product.toObject()) });
 });
 
 //get /api/admin/orders
@@ -395,6 +594,7 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
 
 module.exports = {
   getDashboardStats,
+  getDashboardAnalytics,
   getMyProfile,
   updateMyProfile,
   getAllUsers,
@@ -404,7 +604,6 @@ module.exports = {
   getAllBazaars,
   getOneBazaar,
   updateBazaar,
-  deleteBazaar,
   getAllBrands,
   getOneBrand,
   updateBrand,

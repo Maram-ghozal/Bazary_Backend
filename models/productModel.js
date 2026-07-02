@@ -14,6 +14,7 @@ const productSchema = new mongoose.Schema(
     // لو فيه أوفر — السعر بعد الخصم، لو مفيش أوفر مش محتاجة تبعته
     priceAfterOffer: { type: Number, default: null, min: 0 },
     images:          [{ type: String }],
+    viewsCount:      { type: Number, default: 0, min: 0 },
     isActive:        { type: Boolean, default: true },
   },
   { timestamps: true }
