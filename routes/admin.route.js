@@ -8,6 +8,7 @@ const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const { updateAdminProfileSchema } = require("../utils/validation/adminValidation");
 const {
   getDashboardStats,
+  getDashboardAnalytics,
   getMyProfile,
   updateMyProfile,
   getAllUsers,
@@ -17,7 +18,6 @@ const {
   getAllBazaars,
   getOneBazaar,
   updateBazaar,
-  deleteBazaar,
   getAllBrands,
   getOneBrand,
   updateBrand,
@@ -36,6 +36,7 @@ router.use(verifyToken, roleMiddleware("ADMIN"));
 
 // Dashboard
 router.get("/dashboard", getDashboardStats);
+router.get("/dashboard/analytics", getDashboardAnalytics);
 
 // Admin Profile
 router.get("/setting", getMyProfile);
@@ -51,7 +52,6 @@ router.delete("/users/:id", deleteUser);
 router.get("/bazaars", getAllBazaars);
 router.get("/bazaars/:id", getOneBazaar);
 router.patch("/bazaars/:id", updateBazaar);
-router.delete("/bazaars/:id", deleteBazaar);
 
 // Brands
 router.get("/brands", getAllBrands);

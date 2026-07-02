@@ -156,7 +156,7 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
   const liveBazaarIds = liveBazaars.map((b) => b._id);
 
   if (liveBazaarIds.length === 0) {
-    return res.json({ status: httpStatusText.SUCCESS, data: [] });
+    return res.json({ status: httpStatusText.SUCCESS, count: 0, data: [], topViewed: [] });
   }
 
   const bazaarBrands = await BazaarBrand.find({
@@ -171,10 +171,14 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
     .filter((bb) => bb.brandId)
     .map((bb) => bb.brandId._id);
 
-  const products = await Product.find({
+  let productsQuery = Product.find({
     brandId: { $in: brandIds },
     isActive: true,
-  }).lean();
+  });
+  if (req.query.sort === "views") {
+    productsQuery = productsQuery.sort({ viewsCount: -1 });
+  }
+  const products = await productsQuery.lean();
 
   const productsByBrand = new Map();
   for (const product of products) {
@@ -197,11 +201,19 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
         brandName: bb.brandId.brandName,
         bazaarId: bb.bazaarId,
         bazaarName: bazaarNameMap.get(bb.bazaarId.toString()),
+        openedCount: product.viewsCount || 0,
       });
     }
   }
 
-  res.json({ status: httpStatusText.SUCCESS, count: result.length, data: result });
+  res.json({
+    status: httpStatusText.SUCCESS,
+    count: result.length,
+    data: result,
+    topViewed: [...result]
+      .sort((a, b) => (b.openedCount || 0) - (a.openedCount || 0))
+      .slice(0, Number(req.query.topViewedLimit) || 10),
+  });
 });
 
 
@@ -347,10 +359,11 @@ const getProductDetails = asyncWrapper(async (req, res, next) => {
     return next(error);
   }
 
-  const product = await Product.findOne({
-    _id: productId,
-    brandId: brandId,
-  });
+  const product = await Product.findOneAndUpdate(
+    { _id: productId, brandId: brandId },
+    { $inc: { viewsCount: 1 } },
+    { new: true },
+  );
 
   if (!product) {
     const error = appError.createError(
