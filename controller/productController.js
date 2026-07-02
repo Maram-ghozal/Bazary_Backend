@@ -11,12 +11,21 @@ const getAllProducts = asyncWrapper(async (req, res, next) => {
   const { brand } = result;
 
   let products = await Product.find({ brandId: brand._id }).sort({ createdAt: -1 });
-  //to add stock status
-  let mapped  = products.map((p) => ({ ...p.toObject(), stockStatus: getStockStatus(p.quantity) }));
-//to filter by stock status if provided in query
-  const { status } = req.query;
+
+  let mapped = products.map((p) => ({
+    ...p.toObject(),
+    stockStatus: getStockStatus(p.quantity),
+    blockStatus: p.isActive ? "ACTIVE" : "BLOCKED", 
+  }));
+
+  const { status, blockStatus } = req.query;
+
   if (status) {
     mapped = mapped.filter((p) => p.stockStatus === status.toUpperCase());
+  }
+
+  if (blockStatus) {
+    mapped = mapped.filter((p) => p.blockStatus === blockStatus.toUpperCase());
   }
 
   res.json({ status: httpStatus.SUCCESS, data: { total: mapped.length, products: mapped } });
@@ -31,7 +40,7 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
   const product = await Product.findOne({ _id: req.params.productId, brandId: brand._id });
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
 
-  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), stockStatus: getStockStatus(product.quantity) } });
+  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), stockStatus: getStockStatus(product.quantity),blockStatus: product.isActive ? "ACTIVE" : "BLOCKED", } });
 });
 
 //post /api/brand/products
