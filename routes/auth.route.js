@@ -26,16 +26,21 @@ router.post('/resetPassword', resetPassword);
 
 router.get('/packages',getPackages)
 // Bazaar
+const registrationImageFields = [
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+];
+
 router.post('/register/bazaar',
-    upload.single("logoUrl"),
-    validateDimensions(1983,793),
+    upload.fields(registrationImageFields),
+    validateDimensions(1983, 793, "backgroundImage"),
     uploadOnImageKit, validateMiddleware(createBazaarSchema),
     registerBazaar);
 
 // Brand 
 router.post('/bazaars/:bazaarId/brands/register',
-    upload.single("logoUrl"),
-    validateDimensions(1983,793),
+    upload.fields(registrationImageFields),
+    validateDimensions(1983, 793, "backgroundImage"),
     uploadOnImageKit,
     validateMiddleware(createBrandSchema),
     registerBrand

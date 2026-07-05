@@ -17,6 +17,7 @@ const brandSchema = new mongoose.Schema(
     brandCategory:    { type: String, trim: true },
     brandDescription: { type: String},
     logoUrl:          { type: String },
+    backgroundImage:  { type: String },
     brandType: { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'],required: true},
     location: { type: String },
     isActive: { type: Boolean, default: true },

@@ -221,8 +221,9 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
   if (!checkBazaarNotEnded(bazaar, next)) return;
 
   const body = { ...req.body };
-  if (req.imagesUrls && req.imagesUrls.length > 0) {
-    body.logoUrl = req.imagesUrls[0];
+  if (req.uploadedFiles) {
+    if (req.uploadedFiles.logoUrl) body.logoUrl = req.uploadedFiles.logoUrl;
+    if (req.uploadedFiles.backgroundImage) body.backgroundImage = req.uploadedFiles.backgroundImage;
   }
 
   const updated = await Brand.findByIdAndUpdate(brand._id, body, { new: true });

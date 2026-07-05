@@ -496,8 +496,9 @@ const updateBazaar = asyncWrapper(async (req, res, next) => {
     }
 
     const body = { ...req.body };
-    if (req.imagesUrls && req.imagesUrls.length > 0) {
-        body.logoUrl = req.imagesUrls[0];
+    if (req.uploadedFiles) {
+        if (req.uploadedFiles.logoUrl) body.logoUrl = req.uploadedFiles.logoUrl;
+        if (req.uploadedFiles.backgroundImage) body.backgroundImage = req.uploadedFiles.backgroundImage;
     }
 
     const updated = await Bazaar.findByIdAndUpdate(bazaar._id, body, { new: true });
@@ -1010,8 +1011,9 @@ const updateBrandByBazaar = asyncWrapper(async (req, res, next) => {
 
     const { email, passwordHash, userId, ...allowedUpdates } = req.body;
 
-    if (req.imagesUrls && req.imagesUrls.length > 0) {
-        allowedUpdates.logoUrl = req.imagesUrls[0];
+    if (req.uploadedFiles) {
+        if (req.uploadedFiles.logoUrl) allowedUpdates.logoUrl = req.uploadedFiles.logoUrl;
+        if (req.uploadedFiles.backgroundImage) allowedUpdates.backgroundImage = req.uploadedFiles.backgroundImage;
     }
 
     const updatedBrand = await Brand.findByIdAndUpdate(brandId, allowedUpdates, { new: true });
@@ -1058,8 +1060,9 @@ const addBrandDirectly = asyncWrapper(async (req, res, next) => {
         bazaarId: bazaar._id,
     };
 
-    if (req.imagesUrls && req.imagesUrls.length > 0) {
-        dataEntry.logoUrl = req.imagesUrls[0];
+    if (req.uploadedFiles) {
+        if (req.uploadedFiles.logoUrl) dataEntry.logoUrl = req.uploadedFiles.logoUrl;
+        if (req.uploadedFiles.backgroundImage) dataEntry.backgroundImage = req.uploadedFiles.backgroundImage;
     }
 
     let user = await User.findOne({ email: dataEntry.email });
