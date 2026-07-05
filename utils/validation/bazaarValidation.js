@@ -8,6 +8,7 @@ const createBazaarSchema = Joi.object({
     bazaarName: Joi.string().required(),
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
+    backgroundImage: Joi.string().uri().allow('', null),
     address: Joi.string().allow('', null),
     googleMapsLink: Joi.string().uri().allow('', null),
     startDate: Joi.date().iso().allow(null),
@@ -26,6 +27,7 @@ const updateBazaarSchema = Joi.object({
     bazaarName: Joi.string(),
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
+    backgroundImage: Joi.string().uri().allow('', null),
 
     isAcceptingBrands: Joi.boolean(),
     autoCloseOnFull: Joi.boolean(),

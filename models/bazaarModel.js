@@ -16,6 +16,7 @@ const bazaarSchema = new mongoose.Schema({
     bazaarDescription: { type: String, maxlength: 500 },
 
     logoUrl: { type: String },
+    backgroundImage: { type: String },
     type: { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'], required: true },
     packageId: { type: String, enum: ['STARTER', 'BUSINESS', 'PREMIUM'], required: true },
     topSearch: { type: Boolean, default: false },

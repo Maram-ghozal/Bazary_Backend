@@ -16,6 +16,7 @@ const waitingListSchema = new mongoose.Schema({
     brandCategory:    { type: String },
     brandDescription: { type: String },
     logoUrl:          { type: String },
+    backgroundImage:  { type: String },
     location:         { type: String },
     brandType: { 
         type: String, 

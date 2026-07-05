@@ -28,17 +28,24 @@ router.get('/control/:bazaarId', bazaarController.getBazaarControl);
 router.patch('/control/toggle', validate(updateBazaarSchema), bazaarController.toggleRegistration);
 router.patch('/control/automation', validate(updateBazaarSchema), bazaarController.updateAutomationRules);
 router.get('/setting', bazaarController.getBazaar)
-router.patch("/setting", upload.single("logoUrl"), validateDimensions(1983, 793), uploadOnImageKit,
-    (req, res, next) => {
-        if (req.imagesUrls && req.imagesUrls.length > 0) {
-            req.body.logoUrl = req.imagesUrls[0];
-        }
-        next();
-    },
+const bazaarImageFields = [
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+];
+const mapUploadedFilesToBody = (req, res, next) => {
+    if (req.uploadedFiles) {
+        if (req.uploadedFiles.logoUrl) req.body.logoUrl = req.uploadedFiles.logoUrl;
+        if (req.uploadedFiles.backgroundImage) req.body.backgroundImage = req.uploadedFiles.backgroundImage;
+    }
+    next();
+};
+
+router.patch("/setting", upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit,
+    mapUploadedFilesToBody,
     validate(updateBazaarSchema), bazaarController.updateBazaar);
-router.patch('/brands/:brandId', upload.single("logoUrl"), validateDimensions(1983, 793), uploadOnImageKit, validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
+router.patch('/brands/:brandId', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
 router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
-router.post('/brands/add-direct', upload.single("logoUrl"), validateDimensions(1983, 793), uploadOnImageKit, validate(createBrandSchema), bazaarController.addBrandDirectly);
+router.post('/brands/add-direct', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, validate(createBrandSchema), bazaarController.addBrandDirectly);
 
 // Brands management
 router.get('/brands', bazaarController.getAllBrands);

@@ -23,10 +23,17 @@ router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 // Brand
 router.get("/dashboard", getDashboard);
 router.get("/", getMyBrand);
-router.patch("/",upload.single("logoUrl"),validateDimensions(1983, 793),uploadOnImageKit,
+router.patch("/",
+  upload.fields([
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+  ]),
+  validateDimensions(1983, 793, "backgroundImage"),
+  uploadOnImageKit,
   (req, res, next) => {
-    if (req.imagesUrls && req.imagesUrls.length > 0) {
-      req.body.logoUrl = req.imagesUrls[0];
+    if (req.uploadedFiles) {
+      if (req.uploadedFiles.logoUrl) req.body.logoUrl = req.uploadedFiles.logoUrl;
+      if (req.uploadedFiles.backgroundImage) req.body.backgroundImage = req.uploadedFiles.backgroundImage;
     }
     next();
   },validate(updateBrandSchema),updateBrand);

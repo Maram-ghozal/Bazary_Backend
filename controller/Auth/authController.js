@@ -225,7 +225,8 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     packageId,
     paymentMethod,
   } = req.body;
-  const logoUrl = req.imagesUrls?.[0] || null;
+  const logoUrl = req.uploadedFiles?.logoUrl || null;
+  const backgroundImage = req.uploadedFiles?.backgroundImage || null;
 
     const selectedPackage = getPackage(packageId);
   if (!selectedPackage) {
@@ -285,6 +286,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     bazaarName,
     bazaarDescription,
     logoUrl,
+    backgroundImage,
     address,
     googleMapsLink,
     startDate,
@@ -333,7 +335,8 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
         email, firstName, lastName, phone, whatsapp,
         brandName, brandCategory, brandDescription, location, brandType
     } = req.body;
-    const logoUrl = req.imagesUrls?.[0] || null;
+    const logoUrl = req.uploadedFiles?.logoUrl || null;
+    const backgroundImage = req.uploadedFiles?.backgroundImage || null;
 
     // 1. التحقق من البازار
     const bazaar = await Bazaar.findById(bazaarId);
@@ -357,7 +360,7 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
     const waitingEntry = await WaitingList.create({
         bazaarId,
         email, firstName, lastName, phone, whatsapp,
-        brandName, brandCategory, brandDescription, logoUrl, location,
+        brandName, brandCategory, brandDescription, logoUrl, backgroundImage, location,
         brandType,
         status: 'PENDING'
     });
