@@ -4,6 +4,7 @@ const eventsController=require('../controller/eventsControllers');
 const { getCart, addToCart, updateCartItem, removeFromCart, clearCart } = require('../controller/cartController');
 const { checkout } = require('../controller/checkoutController');
 const { getMyOrders } = require('../controller/orderController');
+const bazaarController = require('../controller/bazaarControllers');
 const { getWishlist, addToWishlist, removeFromWishlist, mergeWishlist } = require('../controller/WishlistController');
 const checkBazaarLive=require('../middleware/checkBazaarLive');
 const verifyToken = require('../middleware/verifyToken');
@@ -50,5 +51,7 @@ router.get("/products/:productId/reviews",eventsController.getProductReview);
 router.post("/brands/:brandId/review",verifyToken,validate(createBrandReviewSchema),eventsController.addOrUpdateBrandReview);
 router.patch("/brands/:brandId/review",verifyToken,validate(updateBrandReviewSchema),eventsController.addOrUpdateBrandReview);
 router.get("/brands/:brandId/reviews",eventsController.getBrandReview);
+
+router.get('/live/top-products-by-bazaar', eventsController.getTopProductsByBazaar);
 
 module.exports=router;
