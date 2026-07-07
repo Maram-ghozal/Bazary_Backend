@@ -608,6 +608,121 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
   });
 });
 
+//get /api/events/live/top-products-by-brand
+const getTopProductsByBrand = asyncWrapper(async (req, res, next) => {
+  const now = new Date();
+
+  await syncBazaarStatus(now);
+
+    const perBrandLimit = req.query.limit ? Math.max(parseInt(req.query.limit) || 5, 1) : Infinity
+    const { bazaarId, brandId } = req.query;
+
+  const bazaarFilter = { status: "LIVE" };
+  if (bazaarId) bazaarFilter._id = bazaarId;
+
+  const liveBazaars = await Bazaar.find(bazaarFilter).select("bazaarName");
+  const liveBazaarIds = liveBazaars.map((b) => b._id);
+
+  if (liveBazaarIds.length === 0) {
+    return res.json({ status: httpStatusText.SUCCESS, data: { total: 0, brands: [] } });
+  }
+
+  const bazaarBrandFilter = { bazaarId: { $in: liveBazaarIds } };
+  if (brandId) bazaarBrandFilter.brandId = brandId;
+
+  const bazaarBrands = await BazaarBrand.find(bazaarBrandFilter).populate(
+    "brandId",
+    "brandName logoUrl isActive",
+  );
+
+  const liveBrands = bazaarBrands
+    .filter((bb) => bb.brandId && bb.brandId.isActive)
+    .map((bb) => bb.brandId);
+
+  const uniqueBrandsMap = new Map(
+    liveBrands.map((b) => [b._id.toString(), b]),
+  );
+  const liveBrandIds = [...uniqueBrandsMap.keys()].map(
+    (id) => new mongoose.Types.ObjectId(id),
+  );
+
+  if (liveBrandIds.length === 0) {
+    return res.json({ status: httpStatusText.SUCCESS, data: { total: 0, brands: [] } });
+  }
+
+  const salesStats = await Order.aggregate([
+    {
+      $match: {
+        bazaarId: { $in: liveBazaarIds },
+        brandId: { $in: liveBrandIds },
+        status: { $ne: "CANCELLED" },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: { brandId: "$brandId", productId: "$items.productId" },
+        totalSold: { $sum: "$items.quantity" },
+        totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } },
+      },
+    },
+    { $sort: { totalSold: -1 } },
+  ]);
+
+  const statsByBrand = new Map();
+  for (const stat of salesStats) {
+    const key = stat._id.brandId.toString();
+    if (!statsByBrand.has(key)) statsByBrand.set(key, []);
+    const list = statsByBrand.get(key);
+    if (list.length < perBrandLimit) {
+      list.push({
+        productId: stat._id.productId,
+        totalSold: stat.totalSold,
+        totalRevenue: stat.totalRevenue,
+      });
+    }
+  }
+
+  const allProductIds = [...statsByBrand.values()].flat().map((p) => p.productId);
+  const products = await Product.find({ _id: { $in: allProductIds }, isActive: true })
+    .select("name images price priceAfterOffer brandId")
+    .lean();
+
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+    const brands = [...uniqueBrandsMap.values()].map((brand) => {
+    const stats = statsByBrand.get(brand._id.toString()) || [];
+
+    const topProducts = stats
+      .map((stat) => {
+        const product = productMap.get(stat.productId.toString());
+        if (!product) return null;
+        return {
+          productId: product._id,
+          productName: product.name,
+          images: product.images,
+          price: product.price,
+          priceAfterOffer: product.priceAfterOffer,
+          totalSold: stat.totalSold,
+          totalRevenue: stat.totalRevenue,
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      brandId: brand._id,
+      brandName: brand.brandName,
+      logoUrl: brand.logoUrl || null,
+      topProducts,
+    };
+  });
+
+  res.json({
+    status: httpStatusText.SUCCESS,
+    data: { total: brands.length, brands },
+  });
+});
+
 module.exports = {
   getLiveBazaars,
   getAllLiveBrands,
@@ -622,5 +737,6 @@ module.exports = {
   getProductReview,
   addOrUpdateBrandReview,
   getBrandReview,
-  getTopProductsByBazaar
+  getTopProductsByBazaar,
+  getTopProductsByBrand
 };
