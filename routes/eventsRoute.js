@@ -53,5 +53,6 @@ router.patch("/brands/:brandId/review",verifyToken,validate(updateBrandReviewSch
 router.get("/brands/:brandId/reviews",eventsController.getBrandReview);
 
 router.get('/live/top-products-by-bazaar', eventsController.getTopProductsByBazaar);
+router.get('/live/top-products-by-brand', eventsController.getTopProductsByBrand);
 
 module.exports=router;
