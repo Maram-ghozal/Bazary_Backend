@@ -29,6 +29,9 @@ const waitingListSchema = new mongoose.Schema({
         default: 'PENDING' 
     },
     paymentLink: { type: String },
+socialMediaLinks: {
+  type: [String],
+default:[] }
 
 }, { timestamps: true });
 

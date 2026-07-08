@@ -16,7 +16,7 @@ const { getAllProducts, getOneProduct, createProduct, updateProduct, deleteProdu
 const { getAllOrders, getOneOrder, updateOrderStatus } = require("../controller/orderController");
 
 const validateDimensions = require("../middleware/validateDimensions");
-
+const parseSocialMediaLinks = require("../middleware/parseSocialMediaLinks");
 
 router.use(verifyToken,roleMiddleware("BRAND_OWNER"));
 
@@ -36,7 +36,8 @@ router.patch("/",
       if (req.uploadedFiles.backgroundImage) req.body.backgroundImage = req.uploadedFiles.backgroundImage;
     }
     next();
-  },validate(updateBrandSchema),updateBrand);
+  },parseSocialMediaLinks,
+  validate(updateBrandSchema),updateBrand);
 // Products
 router.get("/products", getAllProducts);
 router.get("/products/:productId", getOneProduct);

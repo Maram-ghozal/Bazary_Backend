@@ -224,6 +224,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     endDate,
     packageId,
     paymentMethod,
+    socialMediaLinks
   } = req.body;
   const logoUrl = req.uploadedFiles?.logoUrl || null;
   const backgroundImage = req.uploadedFiles?.backgroundImage || null;
@@ -300,6 +301,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     paymentMethod,
     status: "PENDING_PAYMENT",
     isPaid: false,
+    socialMediaLinks
   });
 
   // ✅ Payment مربوط بالبازار + السعر الصح
@@ -333,7 +335,7 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
     const { bazaarId } = req.params;
     const {
         email, firstName, lastName, phone, whatsapp,
-        brandName, brandCategory, brandDescription, location, brandType
+        brandName, brandCategory, brandDescription, location, brandType,socialMediaLinks
     } = req.body;
     const logoUrl = req.uploadedFiles?.logoUrl || null;
     const backgroundImage = req.uploadedFiles?.backgroundImage || null;
@@ -362,6 +364,7 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
         email, firstName, lastName, phone, whatsapp,
         brandName, brandCategory, brandDescription, logoUrl, backgroundImage, location,
         brandType,
+        socialMediaLinks,
         status: 'PENDING'
     });
 

@@ -14,6 +14,7 @@ const createBrandSchema = Joi.object({
   brandCategory: Joi.string().trim().min(2).optional(),
   brandDescription: Joi.string().min(10).max(600).optional(),
   location: Joi.string().trim().allow("").optional(),
+  socialMediaLinks: Joi.array().items(Joi.string().uri()).optional()
 });
 
 const updateBrandSchema = Joi.object({
@@ -27,6 +28,7 @@ const updateBrandSchema = Joi.object({
   brandCategory: Joi.string().trim().min(2),
   brandDescription: Joi.string().trim().min(10).max(600),
   location: Joi.string().trim().allow(""),
+  socialMediaLinks: Joi.array().items(Joi.string().uri()).optional()
 }).min(1); // At least one field must be provided
 
 module.exports = { createBrandSchema, updateBrandSchema };

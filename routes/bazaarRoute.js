@@ -9,7 +9,7 @@ const { createBrandSchema, updateBrandSchema } = require("../utils/validation/br
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const validateDimensions = require("../middleware/validateDimensions");
-
+const parseSocialMediaLinks = require("../middleware/parseSocialMediaLinks");
 router.use(verifyToken, requireRole('BAZAAR_OWNER'));
 
 router.get('/dashboard/brandComparsion', bazaarController.getBrandsComparison);
@@ -41,9 +41,9 @@ const mapUploadedFilesToBody = (req, res, next) => {
 };
 
 router.patch("/setting", upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit,
-    mapUploadedFilesToBody,
+    mapUploadedFilesToBody,parseSocialMediaLinks,
     validate(updateBazaarSchema), bazaarController.updateBazaar);
-router.patch('/brands/:brandId', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
+router.patch('/brands/:brandId', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, parseSocialMediaLinks,validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
 router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
 router.post('/brands/add-direct', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, validate(createBrandSchema), bazaarController.addBrandDirectly);
 

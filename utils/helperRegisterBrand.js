@@ -43,6 +43,7 @@ const createBrandFromWaitingList = async (entry, paymentId = null) => {
       logoUrl: entry.logoUrl,
       backgroundImage: entry.backgroundImage,
       location: entry.location,
+      socialMediaLinks: entry.socialMediaLinks
     });
   } else {
     brand.firstName = entry.firstName;
@@ -57,6 +58,7 @@ const createBrandFromWaitingList = async (entry, paymentId = null) => {
     brand.logoUrl = entry.logoUrl;
     brand.backgroundImage = entry.backgroundImage;
     brand.location = entry.location;
+    brand.socialMediaLinks = entry.socialMediaLinks;
     await brand.save();
   }
 
