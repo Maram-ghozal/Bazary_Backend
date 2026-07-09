@@ -43,6 +43,10 @@ const bazaarSchema = new mongoose.Schema({
     autoCloseOnFull: { type: Boolean, default: true },
 
     autoCloseBeforeEvent: { type: Boolean, default: false },
+    socialMediaLinks: {
+  type: [String],
+  default:[]
+}
 },
 // Automatically add createdAt and updatedAt fields
  { timestamps: true });

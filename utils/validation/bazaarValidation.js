@@ -14,6 +14,7 @@ const createBazaarSchema = Joi.object({
     startDate: Joi.date().iso().allow(null),
     endDate: Joi.date().iso().min(Joi.ref('startDate')).allow(null),
     packageId: Joi.string().valid('STARTER', 'BUSINESS', 'PREMIUM').required(),
+    socialMediaLinks: Joi.array().items(Joi.string().uri()).optional(),
     paymentMethod: Joi.string().allow('', null),
     isAcceptingBrands: Joi.boolean().allow(null),
     autoCloseOnFull: Joi.boolean().allow(null),
@@ -28,7 +29,7 @@ const updateBazaarSchema = Joi.object({
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
     backgroundImage: Joi.string().uri().allow('', null),
-
+socialMediaLinks: Joi.array().items(Joi.string().uri()).optional(),
     isAcceptingBrands: Joi.boolean(),
     autoCloseOnFull: Joi.boolean(),
     autoCloseBeforeEvent: Joi.boolean()

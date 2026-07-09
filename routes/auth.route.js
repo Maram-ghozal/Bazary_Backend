@@ -4,6 +4,7 @@ const validateMiddleware = require("../middleware/validateMiddleware");
 const { registerSchema, loginSchema } = require("../utils/validation/customerValidation");
 const { createBazaarSchema } = require('../utils/validation/bazaarValidation');
 const { createBrandSchema } = require('../utils/validation/brandValidation');
+const parseSocialMediaLinks = require("../middleware/parseSocialMediaLinks");
 const {
     register, login, logout,
     forgotPassword, resetPassword,
@@ -24,7 +25,8 @@ router.post('/logout', logout);
 router.post('/forgotPassword', forgotPassword);
 router.post('/resetPassword', resetPassword);
 
-router.get('/packages',getPackages)
+router.get('/packages', getPackages)
+
 // Bazaar
 const registrationImageFields = [
     { name: "logoUrl", maxCount: 1 },
@@ -34,7 +36,9 @@ const registrationImageFields = [
 router.post('/register/bazaar',
     upload.fields(registrationImageFields),
     validateDimensions(1983, 793, "backgroundImage"),
-    uploadOnImageKit, validateMiddleware(createBazaarSchema),
+    uploadOnImageKit,
+    parseSocialMediaLinks,
+    validateMiddleware(createBazaarSchema),
     registerBazaar);
 
 // Brand 
@@ -42,7 +46,9 @@ router.post('/bazaars/:bazaarId/brands/register',
     upload.fields(registrationImageFields),
     validateDimensions(1983, 793, "backgroundImage"),
     uploadOnImageKit,
+    parseSocialMediaLinks,
     validateMiddleware(createBrandSchema),
     registerBrand
 );
+
 module.exports = router
