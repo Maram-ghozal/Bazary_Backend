@@ -7,14 +7,42 @@ const Product = require("../models/productModel");
 const Customer = require("../models/customerModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
 const Bazaar = require("../models/bazaarModel");
+const PromoCode = require("../models/promoCodeModel");   // ← أضفنا ده
 const { createStripePayment } = require("../Services/stripeService");
 
 const checkout = asyncWrapper(async (req, res, next) => {
-  const { paymentMethod, fullName, phone, address, governate, city } = req.body;
+  const { paymentMethod, fullName, phone, address, governate, city, promoCode } = req.body;
 
   if (!paymentMethod || !["CASH", "VISA"].includes(paymentMethod)) {
     return next(appError.createError("paymentMethod must be CASH or VISA", 400, httpStatus.FAIL));
   }
+
+  // ====================== Promo Code Logic ======================
+  let discountPercentage = 0;
+  let promoDoc = null;
+
+  if (promoCode) {
+    promoDoc = await PromoCode.findOne({ 
+      code: promoCode.toUpperCase(), 
+      isActive: true 
+    });
+
+    if (!promoDoc) {
+      return next(appError.createError("Invalid or expired promo code", 400, httpStatus.FAIL));
+    }
+
+    const customerForPromo = await Customer.findOne({ userId: req.user.id });
+    const alreadyUsed = promoDoc.usedBy.some(u => 
+      u.customerId.toString() === customerForPromo._id.toString()
+    );
+
+    if (alreadyUsed) {
+      return next(appError.createError("You have already used this promo code", 400, httpStatus.FAIL));
+    }
+
+    discountPercentage = promoDoc.discountPercentage;
+  }
+  // ============================================================
 
   if (!phone || !address || !governate || !city) {
     return next(appError.createError("phone, address, governate and city are required", 400, httpStatus.FAIL));
@@ -100,7 +128,12 @@ const checkout = asyncWrapper(async (req, res, next) => {
   const clientSecrets = [];
 
   for (const { bazaarId, brandId, items } of groupMap.values()) {
-    const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    let totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    // تطبيق الخصم
+    if (discountPercentage > 0) {
+      totalAmount = Math.round(totalAmount * (1 - discountPercentage / 100));
+    }
 
     const order = await Order.create({
       customerId: customer._id,
@@ -111,6 +144,12 @@ const checkout = asyncWrapper(async (req, res, next) => {
       paymentMethod,
       status: "PENDING",
     });
+
+    // Mark promo as used (مرة واحدة)
+    if (promoDoc && discountPercentage > 0) {
+      promoDoc.usedBy.push({ customerId: customer._id });
+      await promoDoc.save();
+    }
 
     if (paymentMethod === "CASH") {
       for (const item of items) {
@@ -143,7 +182,14 @@ const checkout = asyncWrapper(async (req, res, next) => {
     { items: [], totalAmount: 0 }
   );
 
-  res.status(201).json({ status: httpStatus.SUCCESS, data: { orders: createdOrders, ...(paymentMethod === "VISA" && { clientSecrets }) } });
+  res.status(201).json({ 
+    status: httpStatus.SUCCESS, 
+    data: { 
+      orders: createdOrders, 
+      ...(paymentMethod === "VISA" && { clientSecrets }),
+      ...(discountPercentage > 0 && { discountApplied: discountPercentage })
+    } 
+  });
 });
 
 module.exports = { checkout };
