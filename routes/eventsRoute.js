@@ -12,6 +12,7 @@ const optionalAuth = require('../middleware/optionalAuth');
 const validate = require("../middleware/validateMiddleware");
 const {createBrandReviewSchema,updateBrandReviewSchema}=require("../utils/validation/brandReviewValidation");
 const {createProductReviewSchema,updateProductReviewSchema}=require("../utils/validation/productReviewValidation");
+const roleMiddleware = require('../middleware/roleMiddleware');
 
 router.get('/live',eventsController.getLiveBazaars);
 router.get('/live/stats', eventsController.getLiveStats);
@@ -24,17 +25,17 @@ router.get('/live/:bazaarId/brands/:brandId/products',checkBazaarLive,eventsCont
 router.get('/live/:bazaarId/brands/:brandId/products/:productId',checkBazaarLive,eventsController.getProductDetails);
 
 //checkout
-router.post('/checkout', verifyToken, checkout);
+router.post('/checkout', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), checkout);
 
 //cart
-router.get('/cart', verifyToken, getCart);
-router.post('/cart', verifyToken, addToCart);
-router.patch('/cart/:productId', verifyToken, updateCartItem);
-router.delete('/cart/:productId', verifyToken, removeFromCart);
-router.delete('/cart', verifyToken, clearCart);
+router.get('/cart', verifyToken, roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), getCart);
+router.post('/cart', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), addToCart);
+router.patch('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), updateCartItem);
+router.delete('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), removeFromCart);
+router.delete('/cart', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), clearCart);
 
 //customer orders
-router.get('/my-orders', verifyToken, getMyOrders);
+router.get('/my-orders', verifyToken, roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), getMyOrders);
 
 //wishlist
 router.get('/wishlist', optionalAuth, getWishlist);
