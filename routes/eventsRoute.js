@@ -25,17 +25,17 @@ router.get('/live/:bazaarId/brands/:brandId/products',checkBazaarLive,eventsCont
 router.get('/live/:bazaarId/brands/:brandId/products/:productId',checkBazaarLive,eventsController.getProductDetails);
 
 //checkout
-router.post('/checkout', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), checkout);
+router.post('/checkout', verifyToken,roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), checkout);
 
 //cart
-router.get('/cart', verifyToken, roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), getCart);
-router.post('/cart', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), addToCart);
-router.patch('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), updateCartItem);
-router.delete('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), removeFromCart);
-router.delete('/cart', verifyToken,roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), clearCart);
+router.get('/cart', verifyToken, roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), getCart);
+router.post('/cart', verifyToken,roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), addToCart);
+router.patch('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), updateCartItem);
+router.delete('/cart/:productId', verifyToken,roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), removeFromCart);
+router.delete('/cart', verifyToken,roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), clearCart);
 
 //customer orders
-router.get('/my-orders', verifyToken, roleMiddleware("ADMIN","BRAND_OWNER","BRAND_OWNER","CUSTOMER"), getMyOrders);
+router.get('/my-orders', verifyToken, roleMiddleware("ADMIN","BAZAAR_OWNER","BRAND_OWNER","CUSTOMER"), getMyOrders);
 
 //wishlist
 router.get('/wishlist', optionalAuth, getWishlist);
