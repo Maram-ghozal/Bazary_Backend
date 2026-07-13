@@ -349,6 +349,18 @@ const registerBrand = asyncWrapper(async (req, res, next) => {
         return next(appError.createError("This bazaar is not accepting brands", 400, httpStatus.FAIL));
     }
 
+const approvedBrandsCount = await BazaarBrand.countDocuments({
+    bazaarId,
+    status: 'APPROVED'
+});
+
+if (approvedBrandsCount >= bazaar.maxBrandCapacity) {
+    return next(appError.createError(
+        "This bazaar has reached its maximum brand capacity",
+        400,
+        httpStatus.FAIL
+    ));
+}
     // 2. التحقق إن نفس الإيميل في نفس البازار مش موجود
     const existing = await WaitingList.findOne({ bazaarId, email });
     if (existing) {

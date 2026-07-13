@@ -7,7 +7,7 @@ const PACKAGES = {
     maxBrandCapacity: 20,
     topSearch: false,
     aiAssistant: false,
-    price: 1500, 
+    price: 2000, 
   },
   BUSINESS: {
     id: "BUSINESS",
@@ -16,7 +16,7 @@ const PACKAGES = {
     maxBrandCapacity: 50,
     topSearch: false,
     aiAssistant: true,
-    price: 3000, 
+    price: 4000, 
   },
   PREMIUM: {
     id: "PREMIUM",
@@ -25,7 +25,7 @@ const PACKAGES = {
     maxBrandCapacity: 100,
     topSearch: true,
     aiAssistant: true,
-    price: 5000, 
+    price: 6000, 
   },
 };
 
