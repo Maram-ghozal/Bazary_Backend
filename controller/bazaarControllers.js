@@ -12,6 +12,7 @@ const bcrypt = require('bcryptjs');
 const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
 const sendEmail = require('../utils/sendEmail');
 const { createStripePayment } = require('../Services/stripeService');
+const { getPackage } = require('../config/packages');
 
 
 const getDashboard = asyncWrapper(async (req, res, next) => {
@@ -383,7 +384,7 @@ const getSalesByHour = asyncWrapper(async (req, res, next) => {
 
 const getBazaarControl = asyncWrapper(async (req, res, next) => {
 
-   const { bazaarId } = req.params;
+    const { bazaarId } = req.params;
 
     let bazaar;
 
@@ -404,7 +405,7 @@ const getBazaarControl = asyncWrapper(async (req, res, next) => {
         return next(error);
     }
 
-    const brandsCount = await BazaarBrand.countDocuments({ bazaarId: bazaar._id });
+    const brandsCount = await BazaarBrand.countDocuments({ bazaarId: bazaar._id, status: 'APPROVED' });
 
     const slotsleft = bazaar.maxBrandCapacity - brandsCount;
 
@@ -929,13 +930,8 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
             `
         });
     } else {
-        const priceMap = {
-            ONLINE: entry.bazaarId.priceOnline,
-            HYBRID: entry.bazaarId.priceHybrid
-        };
-        const amount = priceMap[entry.brandType];
-
-
+        const selectedPackage = getPackage(entry.bazaarId.packageId);
+        const amount = selectedPackage?.price || 0;
         const { clientSecret } = await createStripePayment({
             userId: null,
             bazaarId: entry.bazaarId._id,
