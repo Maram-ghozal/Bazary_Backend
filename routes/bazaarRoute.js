@@ -5,7 +5,7 @@ const verifyToken = require('../middleware/verifyToken');
 const requireRole = require('../middleware/roleMiddleware');
 const validate = require("../middleware/validateMiddleware");
 const { updateBazaarSchema } = require("../utils/validation/bazaarValidation");
-const { createBrandSchema, updateBrandSchema } = require("../utils/validation/brandValidation");
+const { createBrandSchema, updateBrandSchema, blockBrandSchema } = require("../utils/validation/brandValidation");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const validateDimensions = require("../middleware/validateDimensions");
@@ -44,7 +44,7 @@ router.patch("/setting", upload.fields(bazaarImageFields), validateDimensions(19
     mapUploadedFilesToBody,parseSocialMediaLinks,
     validate(updateBazaarSchema), bazaarController.updateBazaar);
 router.patch('/brands/:brandId', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, parseSocialMediaLinks,validate(updateBrandSchema), bazaarController.updateBrandByBazaar);
-router.delete('/brands/:brandId', bazaarController.removeBrandFromBazaar);
+router.delete('/brands/:brandId', validate(blockBrandSchema), bazaarController.removeBrandFromBazaar);
 router.post('/brands/add-direct', upload.fields(bazaarImageFields), validateDimensions(1983, 793, "backgroundImage"), uploadOnImageKit, mapUploadedFilesToBody, validate(createBrandSchema), bazaarController.addBrandDirectly);
 
 // Brands management

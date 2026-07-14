@@ -485,9 +485,19 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
 
 //delete /api/admin/brands/:id
 const deleteBrand = asyncWrapper(async (req, res, next) => {
+  const { reason } = req.body;
+  if (!reason || !reason.trim()) {
+    return next(AppError.createError("Block reason is required", 400, httpStatus.FAIL));
+  }
+
   const brand = await Brand.findByIdAndUpdate(
     req.params.id,
-    { isActive: false },
+    {
+      isActive: false,
+      blockReason: reason.trim(),
+      blockedAt: new Date(),
+      blockedBy: "ADMIN",
+    },
     { new: true }
   );
   if (!brand) return next(AppError.createError("Brand not found", 404, httpStatus.FAIL));
@@ -551,9 +561,19 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
 
 //delete /api/admin/products/:id
 const deleteProduct = asyncWrapper(async (req, res, next) => {
+  const { reason } = req.body;
+  if (!reason || !reason.trim()) {
+    return next(AppError.createError("Block reason is required", 400, httpStatus.FAIL));
+  }
+
   const product = await Product.findByIdAndUpdate(
     req.params.id,
-    { isActive: false },
+    {
+      isActive: false,
+      blockReason: reason.trim(),
+      blockedAt: new Date(),
+      blockedBy: "ADMIN",
+    },
     { new: true }
   );
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));

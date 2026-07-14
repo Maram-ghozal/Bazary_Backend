@@ -33,4 +33,12 @@ const updateProductSchema = Joi.object({
     return value;
   });
 
-module.exports = { createProductSchema, updateProductSchema };
+// جديد: للتحقق من وجود سبب البلوك
+const blockProductSchema = Joi.object({
+  reason: Joi.string().trim().min(3).max(500).required().messages({
+    "string.empty": "Block reason is required",
+    "any.required": "Block reason is required",
+  }),
+});
+
+module.exports = { createProductSchema, updateProductSchema, blockProductSchema };
