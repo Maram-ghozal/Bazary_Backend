@@ -15,6 +15,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const asyncWrapper = require("../../middleware/asyncWrapper");
 const sendEmail = require("../../utils/sendEmail");
+
 // 1---------register customer
 const register = asyncWrapper(async (req, res, next) => {
   const { email, password, fullName, phone, address, governate, city } =
@@ -112,6 +113,7 @@ const login = asyncWrapper(async (req, res, next) => {
     },
   });
 });
+
 const logout = asyncWrapper(async (req, res, next) => {
   res.clearCookie("refreshToken", {
     httpOnly: true,
@@ -124,6 +126,7 @@ const logout = asyncWrapper(async (req, res, next) => {
     data: null,
   });
 });
+
 // forget password
 const forgotPassword = asyncWrapper(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
@@ -174,15 +177,24 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
     );
   }
 });
+
 //reset
 const resetPassword = asyncWrapper(async (req, res, next) => {
-  const { email, otp, password } = req.body;
+  const { otp, password } = req.body;
 
-  //  تشفير الـ OTP للمقارنة
+  if (!otp || !password) {
+    return next(
+      appError.createError(
+        "Please provide otp and new password",
+        400,
+        httpStatus.FAIL,
+      ),
+    );
+  }
+
   const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
 
   const user = await User.findOne({
-    email,
     passwordResetToken: hashedOtp,
     passwordResetExpires: { $gt: Date.now() },
   });
@@ -199,7 +211,6 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 
   const salt = await bcrypt.genSalt(10);
   user.passwordHash = await bcrypt.hash(password, salt);
-  //هنمسحهم من db
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save({ validateBeforeSave: false });
@@ -209,6 +220,7 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
     message: "Password reset successfully!",
   });
 });
+
 //2----------------register bazaar
 const registerBazaar = asyncWrapper(async (req, res, next) => {
   const {
@@ -262,21 +274,6 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
   }
 
   if (isNewUser) {
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: "Your Bazaary Account Details",
-        message: `
-                    Welcome to Bazaary! 🎉
-                    Your account has been successfully created.
-                    Email: ${email}
-                    Password: ${tempPassword}
-                    Please log in and change your password as soon as possible.
-                `,
-      });
-    } catch (error) {
-      console.error("Error sending password email:", error);
-    }
   }
 
   const newBazaar = await Bazaar.create({
@@ -304,7 +301,6 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     socialMediaLinks
   });
 
-  // ✅ Payment مربوط بالبازار + السعر الصح
   const { paymentId, clientSecret } = await createStripePayment({
     userId: user._id,
     bazaarId: newBazaar._id,
@@ -316,6 +312,12 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     },
 
   });
+
+  if (isNewUser) {
+    await Payment.findByIdAndUpdate(paymentId, {
+      pendingCredentials: { email: user.email, tempPassword },
+    });
+  }
 
   res.status(201).json({
     status: httpStatus.SUCCESS,
@@ -330,6 +332,7 @@ const registerBazaar = asyncWrapper(async (req, res, next) => {
     },
   });
 });
+
 //3------------- register brand
 const registerBrand = asyncWrapper(async (req, res, next) => {
     const { bazaarId } = req.params;
@@ -401,6 +404,7 @@ if (approvedBrandsCount >= bazaar.maxBrandCapacity) {
         data: { waitingEntry }
     });
 });
+
 const getPackages = asyncWrapper(async (req, res) => {
   const packages = getAllPackages();
   res.status(200).json({
@@ -408,6 +412,7 @@ const getPackages = asyncWrapper(async (req, res) => {
     data: { packages },
   });
 });
+
 module.exports = {
   register,
   login,
