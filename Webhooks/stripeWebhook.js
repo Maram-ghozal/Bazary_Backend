@@ -44,6 +44,28 @@ const handleStripeWebhook = async (req, res) => {
                         isPaid: true,
                         status: 'UPCOMING'
                     });
+
+                    // ✅ لو فيه بيانات دخول متخزنة (يوزر جديد)، ابعتها دلوقتي بعد نجاح الدفع فعلاً
+                    if (payment.pendingCredentials && payment.pendingCredentials.email) {
+                        try {
+                            await sendEmail({
+                                email: payment.pendingCredentials.email,
+                                subject: "Your Bazaary Account Details",
+                                message: `
+                                    Welcome to Bazaary! 🎉
+                                    Your payment was successful and your account is ready.
+                                    Email: ${payment.pendingCredentials.email}
+                                    Password: ${payment.pendingCredentials.tempPassword}
+                                    Please log in and change your password as soon as possible.
+                                `,
+                            });
+                        } catch (error) {
+                            console.error("Error sending password email:", error);
+                        }
+                        // بنمسح الباسورد المؤقت من الداتابيز بعد ما بعتناه
+                        payment.pendingCredentials = undefined;
+                        await payment.save();
+                    }
                 }
 
             
