@@ -21,6 +21,13 @@ const brandSchema = new mongoose.Schema(
     brandType: { type: String, enum: ['OFFLINE', 'ONLINE', 'HYBRID'], required: true },
     location: { type: String },
     isActive: { type: Boolean, default: true },
+    blockReason: { type: String, default: null, trim: true },
+    blockedAt: { type: Date, default: null },
+    blockedBy: {
+      type: String,
+      enum: ['ADMIN', 'BAZAAR_OWNER', null],
+      default: null,
+    },
     socialMediaLinks: {
       type: [String],
       default: []

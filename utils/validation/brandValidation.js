@@ -1,7 +1,6 @@
 const Joi = require("joi");
 
 const createBrandSchema = Joi.object({
-  // bazaarId:         Joi.string().hex().length(24).required(),
   firstName: Joi.string().trim().min(3).required(),
   lastName: Joi.string().trim().min(3).required(),
   phone: Joi.string().trim().pattern(/^[0-9+\-\s()]+$/).required(),
@@ -29,6 +28,13 @@ const updateBrandSchema = Joi.object({
   brandDescription: Joi.string().trim().min(10).max(600),
   location: Joi.string().trim().allow(""),
   socialMediaLinks: Joi.array().items(Joi.string().uri()).optional()
-}).min(1); // At least one field must be provided
+}).min(1);
 
-module.exports = { createBrandSchema, updateBrandSchema };
+const blockBrandSchema = Joi.object({
+  reason: Joi.string().trim().min(3).max(500).required().messages({
+    "string.empty": "Block reason is required",
+    "any.required": "Block reason is required",
+  }),
+});
+
+module.exports = { createBrandSchema, updateBrandSchema, blockBrandSchema };

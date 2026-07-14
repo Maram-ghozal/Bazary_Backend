@@ -6,6 +6,8 @@ const validate = require("../middleware/validateMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 const uploadOnImageKit = require("../middleware/Imagekitmiddleware");
 const { updateAdminProfileSchema } = require("../utils/validation/adminValidation");
+const { blockBrandSchema } = require("../utils/validation/brandValidation");
+const { blockProductSchema } = require("../utils/validation/productValidation");
 const {
   getDashboardStats,
   getDashboardAnalytics,
@@ -57,13 +59,14 @@ router.patch("/bazaars/:id", updateBazaar);
 router.get("/brands", getAllBrands);
 router.get("/brands/:id", getOneBrand);
 router.patch("/brands/:id", updateBrand);
-router.delete("/brands/:id", deleteBrand);
+router.delete("/brands/:id", validate(blockBrandSchema), deleteBrand);
 
 // Products
 router.get("/products", getAllProducts);
 router.get("/products/:id", getOneProduct);
 router.patch("/products/:id", updateProduct);
-router.delete("/products/:id", deleteProduct);
+router.delete("/products/:id", validate(blockProductSchema), deleteProduct);
+
 
 // Orders
 router.get("/orders", getAllOrders);

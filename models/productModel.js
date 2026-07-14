@@ -11,11 +11,17 @@ const productSchema = new mongoose.Schema(
     description:     { type: String },
     quantity:        { type: Number, required: true, default: 0, min: 0 },
     price:           { type: Number, required: true, min: 0 },
-    // لو فيه أوفر — السعر بعد الخصم، لو مفيش أوفر مش محتاجة تبعته
     priceAfterOffer: { type: Number, default: null, min: 0 },
     images:          [{ type: String }],
     viewsCount:      { type: Number, default: 0, min: 0 },
     isActive:        { type: Boolean, default: true },
+    blockReason:     { type: String, default: null, trim: true },
+    blockedAt:       { type: Date, default: null },
+    blockedBy:       {
+      type: String,
+      enum: ['ADMIN', null],
+      default: null,
+    },
   },
   { timestamps: true }
 );

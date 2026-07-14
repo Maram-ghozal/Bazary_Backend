@@ -1025,6 +1025,7 @@ const updateBrandByBazaar = asyncWrapper(async (req, res, next) => {
 //delete /api/bazaar/brands/:brandId
 const removeBrandFromBazaar = asyncWrapper(async (req, res, next) => {
     const { brandId } = req.params;
+    const { reason } = req.body;
 
     const bazaar = await Bazaar.findOne({ userId: req.user.id });
     if (!bazaar) return next(appError.createError("Bazaar not found", 404, httpStatusText.FAIL));
@@ -1032,10 +1033,31 @@ const removeBrandFromBazaar = asyncWrapper(async (req, res, next) => {
     const bazaarBrand = await BazaarBrand.findOne({ bazaarId: bazaar._id, brandId });
     if (!bazaarBrand) return next(appError.createError("Brand not found in this bazaar", 404, httpStatusText.FAIL));
 
-    await BazaarBrand.findByIdAndDelete(bazaarBrand._id);
-    await Product.deleteMany({ brandId, bazaarId: bazaar._id });
+    const brand = await Brand.findByIdAndUpdate(
+        brandId,
+        {
+            isActive: false,
+            blockReason: reason,
+            blockedAt: new Date(),
+            blockedBy: "BAZAAR_OWNER",
+        },
+        { new: true }
+    );
+    if (!brand) return next(appError.createError("Brand not found", 404, httpStatusText.FAIL));
 
-    return res.json({ status: httpStatusText.SUCCESS, message: "Brand removed from bazaar successfully" });
+    await Product.updateMany({ brandId, bazaarId: bazaar._id }, { isActive: false });
+
+    return res.json({
+        status: httpStatusText.SUCCESS,
+        message: "Brand blocked successfully",
+        data: {
+            brandId: brand._id,
+            isActive: brand.isActive,
+            blockReason: brand.blockReason,
+            blockedAt: brand.blockedAt,
+            blockedBy: brand.blockedBy
+        },
+    });
 });
 
 const addBrandDirectly = asyncWrapper(async (req, res, next) => {
