@@ -21,7 +21,7 @@ const askAssistant = async (systemPrompt, history, message) => {
             'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
         },
         body: JSON.stringify({
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: 'llama-3.3-70b-versatile',
             temperature: 0.4,
             max_tokens: 700,
             messages

@@ -51,8 +51,8 @@ app.use((error, req, res, next) => {
 });
 
 // start the server
-app.listen(process.env.PORT, () => {
-    console.log(`listening on port ${process.env.PORT}`);
-  })
+// app.listen(process.env.PORT, () => {
+//     console.log(`listening on port ${process.env.PORT}`);
+//   })
 
 module.exports = app; 
