@@ -1,10 +1,12 @@
 const express = require('express')
 const router = express.Router()
+const rateLimit = require('express-rate-limit');
 const validateMiddleware = require("../middleware/validateMiddleware");
 const { registerSchema, loginSchema } = require("../utils/validation/customerValidation");
 const { createBazaarSchema } = require('../utils/validation/bazaarValidation');
 const { createBrandSchema } = require('../utils/validation/brandValidation');
 const parseSocialMediaLinks = require("../middleware/parseSocialMediaLinks");
+
 const {
     register, login, logout,
     forgotPassword, resetPassword,
@@ -22,7 +24,12 @@ router.post('/login', validateMiddleware(loginSchema), login);
 router.post('/logout', logout);
 
 // Password
-router.post('/forgotPassword', forgotPassword);
+const otpLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    message: { status: 'fail', message: 'Too many requests, try again after 10 minutes' }
+});
+router.post('/forgotPassword',otpLimiter, forgotPassword);
 router.post('/resetPassword', resetPassword);
 
 router.get('/packages', getPackages)
