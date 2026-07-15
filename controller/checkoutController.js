@@ -7,7 +7,7 @@ const Product = require("../models/productModel");
 const Customer = require("../models/customerModel");
 const BazaarBrand = require("../models/bazaarBrandModel");
 const Bazaar = require("../models/bazaarModel");
-const PromoCode = require("../models/promoCodeModel");   // ← أضفنا ده
+const PromoCode = require("../models/promoCodeModel");   
 const { createStripePayment } = require("../Services/stripeService");
 
 const checkout = asyncWrapper(async (req, res, next) => {
@@ -17,7 +17,6 @@ const checkout = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("paymentMethod must be CASH or VISA", 400, httpStatus.FAIL));
   }
 
-  // ====================== Promo Code Logic ======================
   let discountPercentage = 0;
   let promoDoc = null;
 
@@ -31,9 +30,8 @@ const checkout = asyncWrapper(async (req, res, next) => {
       return next(appError.createError("Invalid or expired promo code", 400, httpStatus.FAIL));
     }
 
-    const customerForPromo = await Customer.findOne({ userId: req.user.id });
     const alreadyUsed = promoDoc.usedBy.some(u => 
-      u.customerId.toString() === customerForPromo._id.toString()
+      u.userId.toString() === req.user.id.toString()
     );
 
     if (alreadyUsed) {
@@ -42,7 +40,6 @@ const checkout = asyncWrapper(async (req, res, next) => {
 
     discountPercentage = promoDoc.discountPercentage;
   }
-  // ============================================================
 
   if (!phone || !address || !governate || !city) {
     return next(appError.createError("phone, address, governate and city are required", 400, httpStatus.FAIL));
@@ -130,7 +127,6 @@ const checkout = asyncWrapper(async (req, res, next) => {
   for (const { bazaarId, brandId, items } of groupMap.values()) {
     let totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-    // تطبيق الخصم
     if (discountPercentage > 0) {
       totalAmount = Math.round(totalAmount * (1 - discountPercentage / 100));
     }
@@ -145,9 +141,8 @@ const checkout = asyncWrapper(async (req, res, next) => {
       status: "PENDING",
     });
 
-    // Mark promo as used (مرة واحدة)
     if (promoDoc && discountPercentage > 0) {
-      promoDoc.usedBy.push({ customerId: customer._id });
+      promoDoc.usedBy.push({ userId: req.user.id });
       await promoDoc.save();
     }
 
