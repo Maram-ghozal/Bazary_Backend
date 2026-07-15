@@ -15,11 +15,41 @@ const getAllOrders = asyncWrapper(async (req, res, next) => {
   const brandOrdersFilter  = { brandId: brand._id };
   if (status) brandOrdersFilter .status = status.toUpperCase();
 
-  const orders = await Order.find(brandOrdersFilter )
-    .populate("customerId", "fullName")
+  const orders = await Order.find(brandOrdersFilter)
+    .populate({
+      path: "customerId",
+      select: "fullName phone address governate city",
+      populate: { path: "userId", select: "email" },
+    })
+    .populate("items.productId", "name images")
     .sort({ createdAt: -1 });
 
-  res.json({ status: httpStatus.SUCCESS, data: { total: orders.length, orders } });
+  const mapped = orders.map((order) => ({
+    orderId: order._id,
+    customer: {
+      customerId: order.customerId?._id,
+      fullName: order.customerId?.fullName || null,
+      email: order.customerId?.userId?.email || null,
+      phone: order.customerId?.phone || null,
+      address: order.customerId?.address || null,
+      governate: order.customerId?.governate || null,
+      city: order.customerId?.city || null,
+    },
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    totalAmount: order.totalAmount,
+    createdAt: order.createdAt,
+    items: order.items.map((item) => ({
+      productId: item.productId?._id,
+      name: item.productId?.name,
+      images: item.productId?.images,
+      quantity: item.quantity,
+      price: item.price,
+      subTotal: item.price * item.quantity,
+    })),
+  }));
+
+  res.json({ status: httpStatus.SUCCESS, data: { total: mapped.length, orders: mapped } });
 });
 
 //get /api/brand/orders/:orderId
