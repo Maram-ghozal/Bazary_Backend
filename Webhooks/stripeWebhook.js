@@ -5,7 +5,7 @@ const BazaarBrand = require('../models/bazaarBrandModel');
 const Order = require('../models/orderModel');
 const Product = require('../models/productModel');
 const WaitingList = require('../models/waitingListModel');
-const { createBrandFromWaitingList } = require('../utils/helperBrand');
+const { createBrandFromWaitingList } = require('../utils/helperRegisterBrand');
 const sendEmail = require('../utils/sendEmail');
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -74,6 +74,8 @@ if (payment.purpose === 'BRAND_SUBSCRIPTION') {
     const entry = await WaitingList.findById(waitingListId);
     if (entry) {
         await createBrandFromWaitingList(entry, payment._id);
+        entry.status = 'APPROVED';
+        await entry.save();
     }
 }
             }
