@@ -914,10 +914,11 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
         return next(appError.createError("Application already processed", 400, httpStatusText.FAIL));
     }
 
-    entry.status = 'APPROVED';
-
     if (entry.brandType === 'OFFLINE') {
-        await createBrandFromWaitingList(entry);
+        entry.status = 'APPROVED';
+        // OFFLINE: البراند مش محتاج يعمل login للسيستم، فبنعمل create للسجلات
+        // من غير ما نبعت إيميل وباسورد
+        await createBrandFromWaitingList(entry, null, false);
         await entry.save();
 
         await sendEmail({
@@ -926,7 +927,7 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
             message: `
                 مبروك ${entry.firstName}!
                 طلبك في ${entry.bazaarId.bazaarName} اتوافق عليه.
-                هتلاقي بيانات حسابك في إيميل منفصل.
+                تواصل مع إدارة البازار لأي تفاصيل إضافية.
             `
         });
     } else {
@@ -940,6 +941,7 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
             metadata: { waitingListId: entry._id.toString() }
         });
 
+        entry.status = 'AWAITING_PAYMENT';
         entry.paymentLink = `${process.env.FRONTEND_URL}/payment/${clientSecret}`;
         await entry.save();
 
