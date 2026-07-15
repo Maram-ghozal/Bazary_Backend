@@ -2,15 +2,11 @@ const asyncWrapper = require("../middleware/asyncWrapper");
 const appError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
 const PromoCode = require("../models/promoCodeModel");
-const Customer = require("../models/customerModel");
 
 const spinPromoCode = asyncWrapper(async (req, res, next) => {
-  const customer = await Customer.findOne({ userId: req.user.id });
-  if (!customer) {
-    return next(appError.createError("Customer profile not found", 404, httpStatus.FAIL));
-  }
+  const userId = req.user.id;
 
-  const existing = await PromoCode.findOne({ "usedBy.customerId": customer._id });
+  const existing = await PromoCode.findOne({ "usedBy.userId": userId });
   if (existing) {
     return res.json({
       status: httpStatus.SUCCESS,
@@ -40,8 +36,8 @@ const validatePromoCode = asyncWrapper(async (req, res, next) => {
     return next(appError.createError("Invalid or expired promo code", 400, httpStatus.FAIL));
   }
 
-  const customer = await Customer.findOne({ userId: req.user.id });
-  const alreadyUsed = promo.usedBy.some(u => u.customerId.toString() === customer._id.toString());
+  const userId = req.user.id;
+  const alreadyUsed = promo.usedBy.some(u => u.userId.toString() === userId.toString());
 
   if (alreadyUsed) {
     return next(appError.createError("You already used this promo code", 400, httpStatus.FAIL));

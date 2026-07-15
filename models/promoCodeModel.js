@@ -14,9 +14,9 @@ const promoCodeSchema = new mongoose.Schema({
   },
   isActive: { type: Boolean, default: true },
   usedBy: [{
-    customerId: { 
+    userId: { 
       type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Customer' 
+      ref: 'User' 
     },
     usedAt: { type: Date, default: Date.now }
   }]
