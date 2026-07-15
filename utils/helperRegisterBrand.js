@@ -5,7 +5,7 @@ const WaitingList = require("../models/waitingListModel");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("./sendEmail");
 
-const createBrandFromWaitingList = async (entry, paymentId = null) => {
+const createBrandFromWaitingList = async (entry, paymentId = null, sendCredentials = true) => {
   let user = await User.findOne({ email: entry.email });
   let tempPassword = "";
 
@@ -71,16 +71,18 @@ const createBrandFromWaitingList = async (entry, paymentId = null) => {
     paidAt: paymentId ? new Date() : null,
   });
 
-  await sendEmail({
-    email: entry.email,
-    subject: "Welcome to Bazaary! 🎉",
-    message: `
-            تم تسجيلك بنجاح في Bazaary!
-            Email: ${entry.email}
-            Password: ${tempPassword}
-            برجاء تغيير الباسورد بعد أول دخول.
-        `,
-  });
+  if (sendCredentials) {
+    await sendEmail({
+      email: entry.email,
+      subject: "Welcome to Bazaary! 🎉",
+      message: `
+              تم تسجيلك بنجاح في Bazaary!
+              Email: ${entry.email}
+              Password: ${tempPassword}
+              برجاء تغيير الباسورد بعد أول دخول.
+          `,
+    });
+  }
 
   return { user, brand };
 };

@@ -25,7 +25,7 @@ const waitingListSchema = new mongoose.Schema({
     },
     status: { 
         type: String, 
-        enum: ['PENDING', 'APPROVED', 'REJECTED'], 
+        enum: ['PENDING', 'AWAITING_PAYMENT', 'APPROVED', 'REJECTED'], 
         default: 'PENDING' 
     },
     paymentLink: { type: String },
