@@ -3,6 +3,7 @@ const AppError = require("../utils/appError");
 const httpStatus = require("../utils/httpStatusText");
 const Product = require("../models/productModel");
 const { getBrandWithBazaar, checkBazaarNotEnded, getStockStatus } = require("../utils/helperBrand");
+const { getRatingsMap, getRatingFor } = require("../utils/helperRating");
 
 //get /api/brand/products
 const getAllProducts = asyncWrapper(async (req, res, next) => {
@@ -11,12 +12,18 @@ const getAllProducts = asyncWrapper(async (req, res, next) => {
   const { brand } = result;
 
   let products = await Product.find({ brandId: brand._id }).sort({ createdAt: -1 });
+  const ratingsMap = await getRatingsMap(products.map((p) => p._id));
 
-  let mapped = products.map((p) => ({
-    ...p.toObject(),
-    stockStatus: getStockStatus(p.quantity),
-    blockStatus: p.isActive ? "ACTIVE" : "BLOCKED", 
-  }));
+  let mapped = products.map((p) => {
+    const { avgRating, ratingCount } = getRatingFor(ratingsMap, p._id);
+    return {
+      ...p.toObject(),
+      stockStatus: getStockStatus(p.quantity),
+      blockStatus: p.isActive ? "ACTIVE" : "BLOCKED",
+      avgRating,
+      ratingCount,
+    };
+  });
 
   const { status, blockStatus } = req.query;
 
@@ -40,7 +47,10 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
   const product = await Product.findOne({ _id: req.params.productId, brandId: brand._id });
   if (!product) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
 
-  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), stockStatus: getStockStatus(product.quantity),blockStatus: product.isActive ? "ACTIVE" : "BLOCKED", } });
+  const ratingsMap = await getRatingsMap([product._id]);
+  const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
+
+  res.json({ status: httpStatus.SUCCESS, data: { ...product.toObject(), stockStatus: getStockStatus(product.quantity), blockStatus: product.isActive ? "ACTIVE" : "BLOCKED", avgRating, ratingCount } });
 });
 
 //post /api/brand/products

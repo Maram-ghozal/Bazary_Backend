@@ -10,6 +10,7 @@ const Product = require("../models/productModel");
 const ProductReview = require("../models/productReviewModel");
 const BrandReview = require("../models/brandReviewModel");
 const syncBazaarStatus = require("../utils/syncBazaarStatus");
+const { getRatingsMap, getRatingFor } = require("../utils/helperRating");
 const mongoose=require("mongoose")
 
 const getLiveBazaars = asyncWrapper(async (req, res, next) => {
@@ -179,6 +180,7 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
     productsQuery = productsQuery.sort({ viewsCount: -1 });
   }
   const products = await productsQuery.lean();
+  const ratingsMap = await getRatingsMap(products.map((p) => p._id));
 
   const productsByBrand = new Map();
   for (const product of products) {
@@ -195,6 +197,7 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
     const brandProducts = productsByBrand.get(brandId) || [];
 
     for (const product of brandProducts) {
+      const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
       result.push({
         ...product,
         brandId: bb.brandId._id,
@@ -202,6 +205,8 @@ const getAllLiveProducts = asyncWrapper(async (req, res, next) => {
         bazaarId: bb.bazaarId,
         bazaarName: bazaarNameMap.get(bb.bazaarId.toString()),
         openedCount: product.viewsCount || 0,
+        avgRating,
+        ratingCount,
       });
     }
   }
@@ -262,26 +267,28 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
     .lean();
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+  const ratingsMap = await getRatingsMap(productIds);
 
   const result = topAgg
     .map((entry) => {
       const product = productMap.get(entry._id.productId.toString());
       if (!product) return null;
       const bazaarId = entry._id.bazaarId;
+      const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
       return {
         ...product,
         bazaarId,
         bazaarName: bazaarNameMap.get(bazaarId.toString()),
         totalSold: entry.totalSold,
         totalRevenue: entry.totalRevenue,
+        avgRating,
+        ratingCount,
       };
     })
     .filter(Boolean);
 
   res.json({ status: httpStatusText.SUCCESS, data: result });
 });
-
-
 const getUpcomingBazaars = asyncWrapper(async (req, res, next) => {
   const now = new Date();
 
@@ -333,11 +340,17 @@ const getBrandProducts = asyncWrapper(async (req, res, next) => {
 
   const products = await Product.find({
     brandId,
+  }).lean();
+
+  const ratingsMap = await getRatingsMap(products.map((p) => p._id));
+  const data = products.map((product) => {
+    const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
+    return { ...product, avgRating, ratingCount };
   });
 
   res.json({
     status: httpStatusText.SUCCESS,
-    data: products,
+    data,
   });
 });
 
@@ -374,9 +387,12 @@ const getProductDetails = asyncWrapper(async (req, res, next) => {
     return next(error);
   }
 
+  const ratingsMap = await getRatingsMap([product._id]);
+  const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
+
   res.json({
     status: httpStatusText.SUCCESS,
-    data: product,
+    data: { ...product.toObject(), avgRating, ratingCount },
   });
 });
 
@@ -513,7 +529,6 @@ const getBrandReview = asyncWrapper(async (req, res, next) => {
     ratingCount: avg[0]?.count || 0,
   });
 });
-
 //get /api/events/live/top-products-by-bazaar
 const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
   const now = new Date();
@@ -572,6 +587,7 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
     .lean();
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+  const ratingsMap = await getRatingsMap(allProductIds);
 
   const bazaars = liveBazaars.map((bazaar) => {
     const stats = statsByBazaar.get(bazaar._id.toString()) || [];
@@ -580,6 +596,7 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
       .map((stat) => {
         const product = productMap.get(stat.productId.toString());
         if (!product) return null;
+        const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
         return {
           productId: product._id,
           productName: product.name,
@@ -590,6 +607,8 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
           brandName: product.brandId?.brandName || null,
           totalSold: stat.totalSold,
           totalRevenue: stat.totalRevenue,
+          avgRating,
+          ratingCount,
         };
       })
       .filter(Boolean);
@@ -689,6 +708,7 @@ const getTopProductsByBrand = asyncWrapper(async (req, res, next) => {
     .lean();
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+  const ratingsMap = await getRatingsMap(allProductIds);
 
     const brands = [...uniqueBrandsMap.values()].map((brand) => {
     const stats = statsByBrand.get(brand._id.toString()) || [];
@@ -697,6 +717,7 @@ const getTopProductsByBrand = asyncWrapper(async (req, res, next) => {
       .map((stat) => {
         const product = productMap.get(stat.productId.toString());
         if (!product) return null;
+        const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
         return {
           productId: product._id,
           productName: product.name,
@@ -705,6 +726,8 @@ const getTopProductsByBrand = asyncWrapper(async (req, res, next) => {
           priceAfterOffer: product.priceAfterOffer,
           totalSold: stat.totalSold,
           totalRevenue: stat.totalRevenue,
+          avgRating,
+          ratingCount,
         };
       })
       .filter(Boolean);
