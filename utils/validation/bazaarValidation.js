@@ -18,7 +18,21 @@ const createBazaarSchema = Joi.object({
     paymentMethod: Joi.string().allow('', null),
     isAcceptingBrands: Joi.boolean().allow(null),
     autoCloseOnFull: Joi.boolean().allow(null),
-    autoCloseBeforeEvent: Joi.boolean().allow(null)
+    autoCloseBeforeEvent: Joi.boolean().allow(null),
+    priceOnline: Joi.number().min(0).when('packageId', {
+        is: Joi.valid('STARTER', 'BUSINESS', 'PREMIUM'),
+        then: Joi.required(),
+    }),
+    priceOffline: Joi.number().min(0).when('packageId', {
+        is: Joi.valid('BUSINESS', 'PREMIUM'),
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(null),
+    }),
+    priceHybrid: Joi.number().min(0).when('packageId', {
+        is: Joi.valid('BUSINESS', 'PREMIUM'),
+        then: Joi.required(),
+        otherwise: Joi.optional().allow(null),
+    }),
 });
 
 const updateBazaarSchema = Joi.object({
@@ -29,10 +43,13 @@ const updateBazaarSchema = Joi.object({
     bazaarDescription: Joi.string().max(500).allow('', null),
     logoUrl: Joi.string().uri().allow('', null),
     backgroundImage: Joi.string().uri().allow('', null),
-socialMediaLinks: Joi.array().items(Joi.string().uri()).optional(),
+    socialMediaLinks: Joi.array().items(Joi.string().uri()).optional(),
     isAcceptingBrands: Joi.boolean(),
     autoCloseOnFull: Joi.boolean(),
-    autoCloseBeforeEvent: Joi.boolean()
+    autoCloseBeforeEvent: Joi.boolean(),
+   priceOffline: Joi.number().min(0).allow(null),
+priceOnline: Joi.number().min(0).allow(null),
+priceHybrid: Joi.number().min(0).allow(null),
 }).min(1);
 
 module.exports = {

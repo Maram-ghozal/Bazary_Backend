@@ -931,8 +931,12 @@ const approveBrand = asyncWrapper(async (req, res, next) => {
             `
         });
     } else {
-        const selectedPackage = getPackage(entry.bazaarId.packageId);
-        const amount = selectedPackage?.price || 0;
+        const priceMap = {
+    ONLINE: entry.bazaarId.priceOnline,
+    OFFLINE: entry.bazaarId.priceOffline,
+    HYBRID: entry.bazaarId.priceHybrid,
+};
+const amount = priceMap[entry.brandType] || 0;
         const { clientSecret } = await createStripePayment({
             userId: null,
             bazaarId: entry.bazaarId._id,
