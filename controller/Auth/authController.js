@@ -18,41 +18,44 @@ const sendEmail = require("../../utils/sendEmail");
 
 // 1---------register customer
 const register = asyncWrapper(async (req, res, next) => {
-  const { email, password, fullName, phone, address, governate, city } =
-    req.body;
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    const error = appError.createError(
-      "This user is already existing",
-      400,
-      httpStatus.FAIL,
-    );
+  const { email, password, fullName } = req.body;
+
+  if (!email || !password || !fullName) {
+    const error = appError.createError("Please provide fullName, email and password", 400, httpStatus.FAIL);
     return next(error);
   }
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    const error = appError.createError("This user is already existing", 400, httpStatus.FAIL);
+    return next(error);
+  }
+
   const hashedPassword = await bcrypt.hash(password, 12);
+
   const newUser = await User.create({
     email,
     passwordHash: hashedPassword,
     role: "CUSTOMER",
   });
+
   await Customer.create({
     userId: newUser._id,
     fullName,
-    phone,
-    address,
-    governate,
-    city,
   });
+
   const tokens = generateToken({
     id: newUser._id,
     role: newUser.role,
   });
+
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax", // بيسمح بتبادل الكوكيز في نفس النطاق بشكل آمن
+    sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
+
   res.status(201).json({
     status: httpStatus.SUCCESS,
     message: "user registered successfully",
@@ -61,16 +64,13 @@ const register = asyncWrapper(async (req, res, next) => {
         id: newUser._id,
         email: newUser.email,
         fullName: fullName,
-        phone: phone,
-        address: address,
-        governate: governate,
-        city: city,
         role: newUser.role,
       },
       accessToken: tokens.accessToken,
     },
   });
 });
+
 const login = asyncWrapper(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
