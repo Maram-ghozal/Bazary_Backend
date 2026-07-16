@@ -58,16 +58,19 @@ router.patch("/bazaars/:id", updateBazaar);
 // Brands
 router.get("/brands", getAllBrands);
 router.get("/brands/:id", getOneBrand);
-router.patch("/brands/:id", updateBrand);
+router.patch("/brands/:id",
+  upload.fields([
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+  ]),
+  uploadOnImageKit,updateBrand);
 router.delete("/brands/:id", validate(blockBrandSchema), deleteBrand);
 
 // Products
 router.get("/products", getAllProducts);
 router.get("/products/:id", getOneProduct);
-router.patch("/products/:id", updateProduct);
+router.patch("/products/:id", upload.array("images"), uploadOnImageKit, updateProduct);
 router.delete("/products/:id", validate(blockProductSchema), deleteProduct);
-
-
 // Orders
 router.get("/orders", getAllOrders);
 router.get("/orders/:id", getOneOrder);
