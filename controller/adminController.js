@@ -475,7 +475,13 @@ const getOneBrand = asyncWrapper(async (req, res, next) => {
 
 //patch /api/admin/brands/:id
 const updateBrand = asyncWrapper(async (req, res, next) => {
-  const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, {
+  const body = { ...req.body };
+  if (req.uploadedFiles) {
+    if (req.uploadedFiles.logoUrl) body.logoUrl = req.uploadedFiles.logoUrl;
+    if (req.uploadedFiles.backgroundImage) body.backgroundImage = req.uploadedFiles.backgroundImage;
+  }
+
+  const brand = await Brand.findByIdAndUpdate(req.params.id, body, {
     new: true,
     runValidators: true,
   });
@@ -551,7 +557,12 @@ const getOneProduct = asyncWrapper(async (req, res, next) => {
 
 //patch /api/admin/products/:id
 const updateProduct = asyncWrapper(async (req, res, next) => {
-  const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+  const body = { ...req.body };
+  if (req.imagesUrls && req.imagesUrls.length > 0) {
+    body.images = req.imagesUrls;
+  }
+
+  const product = await Product.findByIdAndUpdate(req.params.id, body, {
     new: true,
     runValidators: true,
   });
