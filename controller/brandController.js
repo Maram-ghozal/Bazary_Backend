@@ -209,7 +209,16 @@ const getMyBrand = asyncWrapper(async (req, res, next) => {
   const result = await getBrandWithBazaar(req.user.id, next);
   if (!result) return;
 
-  res.json({ status: httpStatus.SUCCESS, data: result.brand });
+  const { brand, bazaar } = result;
+
+  res.json({
+    status: httpStatus.SUCCESS,
+    data: {
+      ...brand.toObject(),
+      bazaarId: bazaar?._id || null,
+      bazaarName: bazaar?.bazaarName || null,
+    },
+  });
 });
 
 //patch /api/brand/:brandId
