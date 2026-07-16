@@ -262,8 +262,8 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
   ]);
 
   const productIds = topAgg.map((p) => p._id.productId);
-  const products = await Product.find({ _id: { $in: productIds } })
-    .populate("brandId", "brandName")
+  const products = await Product.find({ _id: { $in: productIds }, isActive: true })
+    .populate("brandId", "brandName isActive")
     .lean();
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
@@ -273,6 +273,7 @@ const getTopSellingProducts = asyncWrapper(async (req, res, next) => {
     .map((entry) => {
       const product = productMap.get(entry._id.productId.toString());
       if (!product) return null;
+      if (!product.brandId || !product.brandId.isActive) return null;
       const bazaarId = entry._id.bazaarId;
       const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
       return {
@@ -311,11 +312,15 @@ const getBazaarBrand = asyncWrapper(async (req, res, next) => {
     bazaarId,
   }).populate("brandId");
 
+  const activeBrands = brands
+    .filter((item) => item.brandId && item.brandId.isActive)
+    .map((item) => item.brandId);
+
   res.json({
     status: httpStatusText.SUCCESS,
     data: {
       bazaar: req.bazaar,
-      brands: brands.map(item => item.brandId)
+      brands: activeBrands
     }
   });
 
@@ -327,7 +332,7 @@ const getBrandProducts = asyncWrapper(async (req, res, next) => {
   const relation = await BazaarBrand.findOne({
     bazaarId,
     brandId,
-  });
+  }).populate("brandId", "isActive");
 
   if (!relation) {
     const error = appError.createError(
@@ -338,8 +343,18 @@ const getBrandProducts = asyncWrapper(async (req, res, next) => {
     return next(error);
   }
 
+  if (!relation.brandId || !relation.brandId.isActive) {
+    const error = appError.createError(
+      "brand not available",
+      404,
+      httpStatusText.FAIL,
+    );
+    return next(error);
+  }
+
   const products = await Product.find({
     brandId,
+    isActive: true,
   }).lean();
 
   const ratingsMap = await getRatingsMap(products.map((p) => p._id));
@@ -361,7 +376,7 @@ const getProductDetails = asyncWrapper(async (req, res, next) => {
   const relation = await BazaarBrand.findOne({
     bazaarId,
     brandId,
-  });
+  }).populate("brandId", "isActive");
 
   if (!relation) {
     const error = appError.createError(
@@ -372,8 +387,17 @@ const getProductDetails = asyncWrapper(async (req, res, next) => {
     return next(error);
   }
 
+  if (!relation.brandId || !relation.brandId.isActive) {
+    const error = appError.createError(
+      "brand not available",
+      404,
+      httpStatusText.FAIL,
+    );
+    return next(error);
+  }
+
   const product = await Product.findOneAndUpdate(
-    { _id: productId, brandId: brandId },
+    { _id: productId, brandId: brandId, isActive: true },
     { $inc: { viewsCount: 1 } },
     { new: true },
   );
@@ -583,7 +607,7 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
   const allProductIds = [...statsByBazaar.values()].flat().map((p) => p.productId);
   const products = await Product.find({ _id: { $in: allProductIds }, isActive: true })
     .select("name images price priceAfterOffer brandId")
-    .populate("brandId", "brandName")
+    .populate("brandId", "brandName isActive")
     .lean();
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
@@ -596,6 +620,7 @@ const getTopProductsByBazaar = asyncWrapper(async (req, res, next) => {
       .map((stat) => {
         const product = productMap.get(stat.productId.toString());
         if (!product) return null;
+        if (!product.brandId || !product.brandId.isActive) return null;
         const { avgRating, ratingCount } = getRatingFor(ratingsMap, product._id);
         return {
           productId: product._id,
