@@ -46,25 +46,31 @@ const handleStripeWebhook = async (req, res) => {
                     });
 
                     // ✅ لو فيه بيانات دخول متخزنة (يوزر جديد)، ابعتها دلوقتي بعد نجاح الدفع فعلاً
+                    // ملاحظة: بنبعت الإيميل من غير await عشان الـ webhook يكمل ويرد بسرعة
+                    // على Stripe، ومايفضلش الدفع "معلق" لحد ما الإيميل يخلص إرسال.
                     if (payment.pendingCredentials && payment.pendingCredentials.email) {
-                        try {
-                            await sendEmail({
-                                email: payment.pendingCredentials.email,
-                                subject: "Your Bazaary Account Details",
-                                message: `
-                                    Welcome to Bazaary! 🎉
-                                    Your payment was successful and your account is ready.
-                                    Email: ${payment.pendingCredentials.email}
-                                    Password: ${payment.pendingCredentials.tempPassword}
-                                    Please log in and change your password as soon as possible.
-                                `,
+                        const { email: credentialsEmail, tempPassword } = payment.pendingCredentials;
+
+                        sendEmail({
+                            email: credentialsEmail,
+                            subject: "Your Bazaary Account Details",
+                            message: `
+                                Welcome to Bazaary! 🎉
+                                Your payment was successful and your account is ready.
+                                Email: ${credentialsEmail}
+                                Password: ${tempPassword}
+                                Please log in and change your password as soon as possible.
+                            `,
+                        })
+                            .catch((error) => {
+                                console.error("Error sending password email:", error);
+                            })
+                            .finally(async () => {
+                                // بنمسح الباسورد المؤقت من الداتابيز بعد محاولة الإرسال
+                                await Payment.findByIdAndUpdate(payment._id, {
+                                    $unset: { pendingCredentials: 1 },
+                                });
                             });
-                        } catch (error) {
-                            console.error("Error sending password email:", error);
-                        }
-                        // بنمسح الباسورد المؤقت من الداتابيز بعد ما بعتناه
-                        payment.pendingCredentials = undefined;
-                        await payment.save();
                     }
                 }
 
