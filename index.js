@@ -50,7 +50,7 @@ app.use((error, req, res, next) => {
     res.status(error.statusCode || 500).json({status: error.statusText || httpStatusText.ERROR, message: error.message, code: error.statusCode || 500, data: null});
 });
 
-// start the server
+//start the server
 // app.listen(process.env.PORT, () => {
 //     console.log(`listening on port ${process.env.PORT}`);
 //   })

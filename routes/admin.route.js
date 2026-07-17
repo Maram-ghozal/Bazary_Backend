@@ -32,6 +32,10 @@ const {
   getOneOrder,
   updateOrder,
   deleteOrder,
+  createBazaar,
+createBrand,
+createProduct,
+createAdmin,
 } = require("../controller/adminController");
 
 router.use(verifyToken, roleMiddleware("ADMIN"));
@@ -74,5 +78,9 @@ router.delete("/products/:id", validate(blockProductSchema), deleteProduct);
 // Orders
 router.get("/orders", getAllOrders);
 router.get("/orders/:id", getOneOrder);
-
+// ✅ Create
+router.post("/bazaars", createBazaar);
+router.post("/brands", createBrand);
+router.post("/brands/:brandId/products", createProduct);
+router.post("/admins", createAdmin);
 module.exports = router;
