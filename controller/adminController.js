@@ -622,7 +622,129 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
   if (!order) return next(AppError.createError("Order not found", 404, httpStatus.FAIL));
   res.json({ status: httpStatus.SUCCESS, data: order });
 });
+const createBazaar = asyncWrapper(async (req, res, next) => {
+    const { email, fullName, phone, whatsapp, bazaarName, bazaarDescription,
+        address, googleMapsLink, startDate, endDate, packageId, paymentMethod } = req.body;
 
+    const { getPackage } = require('../config/packages');
+    const selectedPackage = getPackage(packageId);
+    if (!selectedPackage) {
+        return next(AppError.createError('Invalid package', 400, httpStatus.FAIL));
+    }
+
+    let user = await User.findOne({ email });
+    if (!user) {
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        user = await User.create({ email, passwordHash: hashedPassword, role: 'BAZAAR_OWNER' });
+    } else if (user.role === 'CUSTOMER') {
+        user.role = 'BAZAAR_OWNER';
+        await user.save();
+    }
+
+    const bazaar = await Bazaar.create({
+        userId: user._id, fullName, phone, whatsapp,
+        bazaarName, bazaarDescription, address, googleMapsLink,
+        startDate, endDate, paymentMethod,
+        type: selectedPackage.type,
+        packageId: selectedPackage.id,
+        maxBrandCapacity: selectedPackage.maxBrandCapacity,
+        topSearch: selectedPackage.topSearch,
+        aiAssistant: selectedPackage.aiAssistant,
+        paidAmount: 0,
+        status: 'UPCOMING',
+        isPaid: true,
+    });
+
+    res.status(201).json({ status: httpStatus.SUCCESS, message: 'Bazaar created successfully', data: { bazaar } });
+});
+
+
+const createBrand = asyncWrapper(async (req, res, next) => {
+    const { email, firstName, lastName, phone, whatsapp,
+        brandName, brandCategory, brandDescription, location, 
+        brandType, bazaarId } = req.body;  // ✅ ضيفي bazaarId
+
+    // التحقق من البازار لو اتبعت
+    let bazaar = null;
+    if (bazaarId) {
+        bazaar = await Bazaar.findById(bazaarId);
+        if (!bazaar) {
+            return next(AppError.createError('Bazaar not found', 404, httpStatus.FAIL));
+        }
+
+        // التحقق من الـ capacity
+        const approvedCount = await BazaarBrand.countDocuments({ 
+            bazaarId, status: 'APPROVED' 
+        });
+        if (approvedCount >= bazaar.maxBrandCapacity) {
+            return next(AppError.createError(
+                'Bazaar has reached its maximum brand capacity', 400, httpStatus.FAIL
+            ));
+        }
+    }
+
+    let user = await User.findOne({ email });
+    if (!user) {
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        user = await User.create({ email, passwordHash: hashedPassword, role: 'BRAND_OWNER' });
+    } else if (user.role === 'CUSTOMER') {
+        user.role = 'BRAND_OWNER';
+        await user.save();
+    }
+
+    const brand = await Brand.create({
+        userId: user._id, firstName, lastName, phone, whatsapp,
+        email, brandName, brandCategory, brandDescription, location,
+        brandType, isActive: true,
+    });
+
+    // ✅ لو في bazaarId بيتربط البراند بالبازار مباشرة
+    let bazaarBrand = null;
+    if (bazaarId) {
+        bazaarBrand = await BazaarBrand.create({
+            bazaarId,
+            brandId: brand._id,
+            brandType,
+            status: 'APPROVED',
+            paidAt: new Date(),
+            paidAmount: 0,
+        });
+    }
+
+    res.status(201).json({ 
+        status: httpStatus.SUCCESS, 
+        message: 'Brand created successfully', 
+        data: { brand, bazaarBrand } 
+    });
+});
+// product لبراند معين من الأدمن
+const createProduct = asyncWrapper(async (req, res, next) => {
+    const { brandId } = req.params;
+    const brand = await Brand.findById(brandId);
+    if (!brand) return next(AppError.createError('Brand not found', 404, httpStatus.FAIL));
+
+    const product = await Product.create({ ...req.body, brandId });
+    res.status(201).json({ status: httpStatus.SUCCESS, message: 'Product created successfully', data: { product } });
+});
+
+//admin جديد
+const createAdmin = asyncWrapper(async (req, res, next) => {
+    const { email, password, fullName, phone } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        return next(AppError.createError('User already exists', 400, httpStatus.FAIL));
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ email, passwordHash: hashedPassword, role: 'ADMIN' });
+
+    const admin = await Admin.create({ userId: user._id, fullName, phone });
+
+    res.status(201).json({ status: httpStatus.SUCCESS, message: 'Admin created successfully', data: { user, admin } });
+});
 module.exports = {
   getDashboardStats,
   getDashboardAnalytics,
@@ -644,5 +766,9 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getAllOrders,
-  getOneOrder
+  getOneOrder,
+  createBazaar,
+createBrand,
+createProduct,
+createAdmin,
 };
