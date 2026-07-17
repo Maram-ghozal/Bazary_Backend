@@ -85,7 +85,10 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
 
   const body = { ...req.body };
   if (req.imagesUrls && req.imagesUrls.length > 0) {
-    body.images = req.imagesUrls;
+    const existingProduct = await Product.findOne({ _id: req.params.productId, brandId: brand._id });
+    if (!existingProduct) return next(AppError.createError("Product not found", 404, httpStatus.FAIL));
+
+    body.images = [...(existingProduct.images || []), ...req.imagesUrls];
   }
 
   const product = await Product.findOneAndUpdate(
