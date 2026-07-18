@@ -57,7 +57,13 @@ router.delete("/users/:id", deleteUser);
 // Bazaars
 router.get("/bazaars", getAllBazaars);
 router.get("/bazaars/:id", getOneBazaar);
-router.patch("/bazaars/:id", updateBazaar);
+router.patch("/bazaars/:id",
+  upload.fields([
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+  ]),
+  uploadOnImageKit,
+  updateBazaar);
 
 // Brands
 router.get("/brands", getAllBrands);
