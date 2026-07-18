@@ -41,8 +41,8 @@ router.patch("/",
 // Products
 router.get("/products", getAllProducts);
 router.get("/products/:productId", getOneProduct);
-router.post("/products", validate(createProductSchema), upload.array("images"), uploadOnImageKit, createProduct);
-router.patch("/products/:productId", validate(updateProductSchema), upload.array("images"), uploadOnImageKit, updateProduct);
+router.post("/products", upload.array("images"), uploadOnImageKit, validate(createProductSchema), createProduct);
+router.patch("/products/:productId", upload.array("images"), uploadOnImageKit, validate(updateProductSchema), updateProduct);
 router.delete("/products/:productId", deleteProduct);
 
 // Orders

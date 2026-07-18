@@ -10,7 +10,6 @@ const Brand = require("../models/brandModel");
 const Product = require("../models/productModel");
 const Order = require("../models/orderModel");
 const BazaarBrand = require("../models/bazaarBrandModel"); 
-const sendEmail = require("../utils/sendEmail");
 
 const getPagination = (req) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -623,27 +622,6 @@ const getOneOrder = asyncWrapper(async (req, res, next) => {
   if (!order) return next(AppError.createError("Order not found", 404, httpStatus.FAIL));
   res.json({ status: httpStatus.SUCCESS, data: order });
 });
-// بيبعت للمستخدم إيميله والباسورد المؤقت اللي اتولد له لما الأدمن يضيفه كبراند/بازار أونر
-const sendCredentialsEmail = async ({ email, password, roleLabel, entityName }) => {
-    try {
-        await sendEmail({
-            email,
-            subject: `Welcome to Bazaary! Your ${roleLabel} account is ready 🎉`,
-            message: `
-تم إنشاء حساب ${roleLabel} الخاص بك (${entityName}) بنجاح في Bazaary!
-
-بيانات الدخول:
-Email: ${email}
-Password: ${password}
-
-برجاء تسجيل الدخول وتغيير الباسورد بعد أول دخول للحفاظ على أمان حسابك.
-            `,
-        });
-    } catch (err) {
-        // لو الإيميل فشل، منوقفش عملية إنشاء البراند/البازار عشانه، بس بنسجل الخطأ
-        console.error('Failed to send credentials email:', err.message);
-    }
-};
 
 const createBazaar = asyncWrapper(async (req, res, next) => {
     const { email, fullName, phone, whatsapp, bazaarName, bazaarDescription,
@@ -656,14 +634,11 @@ const createBazaar = asyncWrapper(async (req, res, next) => {
     }
 
     let user = await User.findOne({ email });
-    let tempPassword = null;
     if (!user) {
-        tempPassword = Math.random().toString(36).slice(-8);
+        const tempPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         user = await User.create({ email, passwordHash: hashedPassword, role: 'BAZAAR_OWNER' });
     } else if (user.role === 'CUSTOMER') {
-        tempPassword = Math.random().toString(36).slice(-8);
-        user.passwordHash = await bcrypt.hash(tempPassword, 10);
         user.role = 'BAZAAR_OWNER';
         await user.save();
     }
@@ -680,17 +655,9 @@ const createBazaar = asyncWrapper(async (req, res, next) => {
         paidAmount: 0,
         status: 'UPCOMING',
         isPaid: true,
+        ...(req.uploadedFiles?.logoUrl && { logoUrl: req.uploadedFiles.logoUrl }),
+        ...(req.uploadedFiles?.backgroundImage && { backgroundImage: req.uploadedFiles.backgroundImage }),
     });
-
-    // لو اتولد باسورد مؤقت (يوزر جديد أو كستومر اتحول لبازار أونر) نبعتله بيانات الدخول
-    if (tempPassword) {
-        await sendCredentialsEmail({
-            email,
-            password: tempPassword,
-            roleLabel: 'Bazaar Owner',
-            entityName: bazaarName,
-        });
-    }
 
     res.status(201).json({ status: httpStatus.SUCCESS, message: 'Bazaar created successfully', data: { bazaar } });
 });
@@ -721,14 +688,11 @@ const createBrand = asyncWrapper(async (req, res, next) => {
     }
 
     let user = await User.findOne({ email });
-    let tempPassword = null;
     if (!user) {
-        tempPassword = Math.random().toString(36).slice(-8);
+        const tempPassword = Math.random().toString(36).slice(-8);
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         user = await User.create({ email, passwordHash: hashedPassword, role: 'BRAND_OWNER' });
     } else if (user.role === 'CUSTOMER') {
-        tempPassword = Math.random().toString(36).slice(-8);
-        user.passwordHash = await bcrypt.hash(tempPassword, 10);
         user.role = 'BRAND_OWNER';
         await user.save();
     }
@@ -737,6 +701,8 @@ const createBrand = asyncWrapper(async (req, res, next) => {
         userId: user._id, firstName, lastName, phone, whatsapp,
         email, brandName, brandCategory, brandDescription, location,
         brandType, isActive: true,
+        ...(req.uploadedFiles?.logoUrl && { logoUrl: req.uploadedFiles.logoUrl }),
+        ...(req.uploadedFiles?.backgroundImage && { backgroundImage: req.uploadedFiles.backgroundImage }),
     });
 
     // ✅ لو في bazaarId بيتربط البراند بالبازار مباشرة
@@ -752,16 +718,6 @@ const createBrand = asyncWrapper(async (req, res, next) => {
         });
     }
 
-    // لو اتولد باسورد مؤقت (يوزر جديد أو كستومر اتحول لبراند أونر) نبعتله بيانات الدخول
-    if (tempPassword) {
-        await sendCredentialsEmail({
-            email,
-            password: tempPassword,
-            roleLabel: 'Brand Owner',
-            entityName: brandName,
-        });
-    }
-
     res.status(201).json({ 
         status: httpStatus.SUCCESS, 
         message: 'Brand created successfully', 
@@ -774,7 +730,8 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     const brand = await Brand.findById(brandId);
     if (!brand) return next(AppError.createError('Brand not found', 404, httpStatus.FAIL));
 
-    const product = await Product.create({ ...req.body, brandId });
+    const images = req.imagesUrls || [];
+    const product = await Product.create({ ...req.body, brandId, images });
     res.status(201).json({ status: httpStatus.SUCCESS, message: 'Product created successfully', data: { product } });
 });
 

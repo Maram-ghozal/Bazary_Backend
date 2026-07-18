@@ -79,8 +79,25 @@ router.delete("/products/:id", validate(blockProductSchema), deleteProduct);
 router.get("/orders", getAllOrders);
 router.get("/orders/:id", getOneOrder);
 // ✅ Create
-router.post("/bazaars", createBazaar);
-router.post("/brands", createBrand);
-router.post("/brands/:brandId/products", createProduct);
+router.post(
+  "/bazaars",
+  upload.fields([
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+  ]),
+  uploadOnImageKit,
+  createBazaar
+);
+router.post(
+  "/brands",
+  upload.fields([
+    { name: "logoUrl", maxCount: 1 },
+    { name: "backgroundImage", maxCount: 1 },
+  ]),
+  uploadOnImageKit,
+  createBrand
+);
+router.post("/brands/:brandId/products", upload.array("images"), uploadOnImageKit, createProduct);
 router.post("/admins", createAdmin);
+
 module.exports = router;
